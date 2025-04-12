@@ -39,6 +39,14 @@ def init_db():
     logging.debug("Database initialized.")
 init_db()
 
+@app.route('/')
+def home():
+    return "Welcome to the Flask App!"
+
+@app.route('/ping')
+def ping():
+    return "Ping successful!"
+
 @app.route('/payment', methods=['POST'])
 def payment():
     logging.debug("Received a payment request.")
@@ -154,3 +162,4 @@ if __name__ == "__main__":
 
     flask_thread.join()
     telegram_thread.join()
+
