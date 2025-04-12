@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Spin</h2>
+<p>Current Deposit: {{ deposit }} ETB</p>
+<form id="spin-form" method="POST">
+    <div class="mb-3">
+        <label for="bet_amount" class="form-label">Bet Amount (ETB)</label>
+        <input type="number" class="form-control" id="bet_amount" name="bet_amount" min="1" max="{{ deposit }}" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Spin the Wheel</button>
+</form>
+<div id="result" class="mt-3"></div>
+
+<script>
+$(document).ready(function() {
+    $('#spin-form').submit(function(e) {
+        e.preventDefault();
+        $.ajax({
+            url: '{{ url_for("play_game", game_type="spin") }}',
+            type: 'POST',
+            data: { bet_amount: $('#bet_amount').val() },
+            success: function(data) {
+                $('#result').html(`<div class="alert alert-${data.status === 'success' ? 'success' : 'danger'}">
+                    ${data.message}<br>
+                    ${data.status === 'success' ? 
+                        `Won: ${data.amount_won} ETB, Lost: ${data.amount_lost} ETB<br>
+                        Multiplier: ${data.details.spin.multiplier}` 
+                        : ''}
+                </div>`);
+            },
+            error: function(xhr) {
+                $('#result').html(`<div class="alert alert-danger">${xhr.responseJSON.message}</div>`);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
