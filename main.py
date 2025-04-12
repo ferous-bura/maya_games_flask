@@ -6,7 +6,6 @@ import requests
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, Application
-from game_bot_handler import main
 
 app = Flask(__name__)
 
