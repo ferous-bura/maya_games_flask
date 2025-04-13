@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        @keyframes roll {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-roll-dice {
+            animation: roll 0.5s ease-out;
+        }
+        .fade-in-out {
+            animation: fadeInOut 1s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #facc15;
+            animation: confettiFall 2s ease-out;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col" x-data="ludoGame()">
+    <!-- Status Bar -->
+    <header class="bg-gray-800 p-4 flex justify-between items-center">
+        <div>
+            <span>Deposit: <span x-text="deposit.toFixed(2)"></span> ETB</span> |
+            <span>Bet: <span x-text="betAmount.toFixed(2)"></span> ETB</span> |
+            <span>Win: <span x-text="winAmount.toFixed(2)"></span> ETB</span>
+        </div>
+        <div>
+            <span>Time: <span x-text="currentTime"></span></span> |
+            <span>Tickets: <span x-text="tickets"></span></span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 relative">
+        <div class="max-w-2xl mx-auto">
+            <!-- Header -->
+            <h1 class="text-2xl font-bold mb-4 text-teal-400 text-center" x-text="gameStarted ? (isPlayerTurn ? 'Your Turn' : 'Bot\'s Turn') : 'Choose Your Team'"></h1>
+
+            <!-- Board -->
+            <div class="grid grid-cols-15 gap-0.5 mb-4 p-2 rounded-lg">
+                <template x-for="row in 15" :key="row">
+                    <template x-for="col in 15" :key="col">
+                        <div 
+                            class="w-8 h-8 flex items-center justify-center text-xs rounded"
+                            :class="getCellClass(row-1, col-1)"
+                        >
+                            <span x-text="getCellContent(row-1, col-1)" class="text-white font-bold"></span>
+                        </div>
+                    </template>
+                </template>
+            </div>
+
+            <!-- Selection Controls -->
+            <div 
+                x-show="!gameStarted" 
+                class="flex flex-col space-y-4 mb-4"
+                x-transition:enter="transition ease-out duration-300" 
+                x-transition:enter-start="opacity-0 transform translate-y-4"
+                x-transition:enter-end="opacity-100 transform translate-y-0"
+                x-transition:leave="transition ease-in duration-300"
+                x-transition:leave-start="opacity-100 transform translate-y-0"
+                x-transition:leave-end="opacity-0 transform translate-y-4"
+            >
+                <div class="flex items-center space-x-4 justify-center">
+                    <label>Bet Amount (ETB):</label>
+                    <input 
+                        type="number" 
+                        x-model="betAmount" 
+                        min="1" 
+                        class="bg-gray-700 text-white p-2 rounded w-24"
+                        :disabled="demo"
+                    >
+                </div>
+                <div class="flex items-center space-x-4 justify-center">
+                    <label>Team:</label>
+                    <select x-model="playerColor" class="bg-gray-700 text-white p-2 rounded">
+                        <option value="red">Red</option>
+                        <option value="blue">Blue</option>
+                        <option value="green">Green</option>
+                        <option value="yellow">Yellow</option>
+                    </select>
+                </div>
+                <button 
+                    class="bg-green-600 px-4 py-2 rounded hover:bg-green-700 mx-auto block"
+                    @click="startGame()"
+                    :disabled="betAmount <= 0 && !demo"
+                >
+                    Start Ludo
+                </button>
+            </div>
+            <p 
+                x-show="demo && !gameStarted" 
+                class="text-yellow-400 mb-4 text-center"
+                x-transition.opacity
+            >
+                Demo Mode: No real bets.
+            </p>
+
+            <!-- Gameplay Info -->
+            <div 
+                x-show="gameStarted" 
+                class="mb-4 text-center"
+                x-transition:enter="transition ease-out duration-300" 
+                x-transition:enter-start="opacity-0 transform translate-y-4"
+                x-transition:enter-end="opacity-100 transform translate-y-0"
+                x-transition:leave="transition ease-in duration-300"
+                x-transition:leave-start="opacity-100 transform translate-y-0"
+                x-transition:leave-end="opacity-0 transform translate-y-4"
+            >
+                <p>Rolls: <span x-text="rollCount"></span></p>
+                <p x-show="gameOver">Result: <span x-text="winner ? 'You Win!' : 'Bot Wins!'"></span></p>
+                <button 
+                    x-show="isPlayerTurn && !gameOver" 
+                    class="bg-purple-600 px-4 py-2 rounded hover:bg-purple-700 mx-auto block"
+                    @click="rollDice()"
+                >
+                    Roll Dice
+                </button>
+                <button 
+                    x-show="gameOver" 
+                    class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 mt-4 mx-auto block"
+                    @click="resetGame()"
+                >
+                    Play Again
+                </button>
+            </div>
+        </div>
+
+        <!-- Large Dice Display -->
+        <div 
+            x-show="currentDice !== null" 
+            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-50"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-50"
+        >
+            <div 
+                class="w-32 h-32 rounded-lg bg-gray-800 flex items-center justify-center text-5xl font-bold fade-in-out border-4 border-purple-400 animate-roll-dice"
+            >
+                <span x-text="currentDice"></span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function ludoGame() {
+            return {
+                deposit: {{ deposit|safe }},
+                demo: {{ 'true' if demo else 'false' }},
+                betAmount: 1,
+                winAmount: 0,
+                tickets: 0,
+                playerColor: 'red',
+                botColor: 'blue',
+                board: [],
+                playerPieces: [],
+                botPieces: [],
+                currentDice: null,
+                rollCount: 0,
+                gameStarted: false,
+                isPlayerTurn: true,
+                gameOver: false,
+                winner: false,
+                currentTime: new Date().toLocaleTimeString(),
+
+                init() {
+                    this.updateTime();
+                    setInterval(() => this.updateTime(), 1000);
+                    this.tickets = this.demo ? 1 : 0;
+                },
+
+                updateTime() {
+                    this.currentTime = new Date().toLocaleTimeString();
+                },
+
+                initializeBoard() {
+                    // 15x15 board: 0=empty, 1=safe, 2=red path, 3=blue path, 4=green path, 5=yellow path, 6=home
+                    this.board = Array(15).fill().map(() => Array(15).fill(0));
+
+                    // Home bases
+                    for (let r = 0; r < 6; r++) {
+                        for (let c = 0; c < 6; c++) {
+                            this.board[r][c] = 2; // Red
+                            this.board[r][c + 9] = 4; // Green
+                            this.board[r + 9][c] = 5; // Yellow
+                            this.board[r + 9][c + 9] = 3; // Blue
+                        }
+                    }
+
+                    // Main path (outer loop)
+                    const path = [
+                        [6,1], [6,2], [6,3], [6,4], [6,5], [5,6], [4,6], [3,6], [2,6], [1,6], [0,6], // Left to top
+                        [0,7], [0,8], // Top
+                        [1,8], [2,8], [3,8], [4,8], [5,8], [6,9], [6,10], [6,11], [6,12], [6,13], [6,14], // Top to right
+                        [7,14], [8,14], // Right
+                        [8,13], [8,12], [8,11], [8,10], [8,9], [9,8], [10,8], [11,8], [12,8], [13,8], [14,8], // Right to bottom
+                        [14,7], [14,6], // Bottom
+                        [13,6], [12,6], [11,6], [10,6], [9,6], [8,5], [8,4], [8,3], [8,2], [8,1], [8,0], // Bottom to left
+                        [7,0], [6,0] // Left
+                    ];
+                    path.forEach(([r, c]) => this.board[r][c] = 1);
+
+                    // Home paths
+                    const redHome = [[7,1], [7,2], [7,3], [7,4], [7,5], [7,6]];
+                    const greenHome = [[1,7], [2,7], [3,7], [4,7], [5,7], [6,7]];
+                    const blueHome = [[7,13], [7,12], [7,11], [7,10], [7,9], [7,8]];
+                    const yellowHome = [[13,7], [12,7], [11,7], [10,7], [9,7], [8,7]];
+                    redHome.forEach(([r, c]) => this.board[r][c] = 2);
+                    greenHome.forEach(([r, c]) => this.board[r][c] = 4);
+                    blueHome.forEach(([r, c]) => this.board[r][c] = 3);
+                    yellowHome.forEach(([r, c]) => this.board[r][c] = 5);
+
+                    // Center (home)
+                    this.board[7][7] = 6;
+
+                    // Safe zones (stars)
+                    this.board[1][6] = this.board[6][13] = this.board[13][8] = this.board[8][1] = 1; // Outer stars
+                },
+
+                startGame() {
+                    if (this.betAmount <= 0 && !this.demo) return;
+                    this.gameStarted = true;
+                    this.botColor = this.playerColor === 'red' ? 'blue' : this.playerColor === 'blue' ? 'red' : this.playerColor === 'green' ? 'yellow' : 'green';
+                    this.initializeBoard();
+                    this.playerPieces = [{ id: 1, pos: null }, { id: 2, pos: null }]; // 2 pieces
+                    this.botPieces = [{ id: 1, pos: null }, { id: 2, pos: null }];
+                    this.isPlayerTurn = true;
+                    this.gameOver = false;
+                    this.winner = false;
+                },
+
+                async rollDice() {
+                    this.currentDice = Math.floor(Math.random() * 6) + 1;
+                    this.rollCount++;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    this.currentDice = null;
+
+                    // Player move
+                    await this.movePiece(this.playerPieces, this.playerColor, this.currentDice);
+
+                    // Check win
+                    if (this.playerPieces.every(p => p.pos && p.pos[0] === 7 && p.pos[1] === 7)) {
+                        this.gameOver = true;
+                        this.winner = true;
+                        this.handleGameEnd();
+                        return;
+                    }
+
+                    this.isPlayerTurn = false;
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Bot move
+                    this.currentDice = Math.floor(Math.random() * 6) + 1;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    this.currentDice = null;
+
+                    await this.movePiece(this.botPieces, this.botColor, this.currentDice);
+
+                    if (this.botPieces.every(p => p.pos && p.pos[0] === 7 && p.pos[1] === 7)) {
+                        this.gameOver = true;
+                        this.winner = false;
+                        this.handleGameEnd();
+                        return;
+                    }
+
+                    this.isPlayerTurn = true;
+                },
+
+                async movePiece(pieces, color, dice) {
+                    const paths = {
+                        red: [[6,0], [6,1], [6,2], [6,3], [6,4], [6,5], [5,6], [4,6], [3,6], [2,6], [1,6], [0,6], [0,7], [0,8], [1,8], [2,8], [3,8], [4,8], [5,8], [6,9], [6,10], [6,11], [6,12], [6,13], [6,14], [7,14], [8,14], [8,13], [8,12], [8,11], [8,10], [8,9], [9,8], [10,8], [11,8], [12,8], [13,8], [14,8], [14,7], [14,6], [13,6], [12,6], [11,6], [10,6], [9,6], [8,5], [8,4], [8,3], [8,2], [8,1], [8,0], [7,0], [7,1], [7,2], [7,3], [7,4], [7,5], [7,6], [7,7]],
+                        blue: [[8,14], [8,13], [8,12], [8,11], [8,10], [8,9], [9,8], [10,8], [11,8], [12,8], [13,8], [14,8], [14,7], [14,6], [13,6], [12,6], [11,6], [10,6], [9,6], [8,5], [8,4], [8,3], [8,2], [8,1], [8,0], [7,0], [6,0], [6,1], [6,2], [6,3], [6,4], [6,5], [5,6], [4,6], [3,6], [2,6], [1,6], [0,6], [0,7], [0,8], [1,8], [2,8], [3,8], [4,8], [5,8], [6,9], [6,10], [6,11], [6,12], [6,13], [6,14], [7,14], [7,13], [7,12], [7,11], [7,10], [7,9], [7,8], [7,7]],
+                        green: [[0,8], [1,8], [2,8], [3,8], [4,8], [5,8], [6,9], [6,10], [6,11], [6,12], [6,13], [6,14], [7,14], [8,14], [8,13], [8,12], [8,11], [8,10], [8,9], [9,8], [10,8], [11,8], [12,8], [13,8], [14,8], [14,7], [14,6], [13,6], [12,6], [11,6], [10,6], [9,6], [8,5], [8,4], [8,3], [8,2], [8,1], [8,0], [7,0], [6,0], [6,1], [6,2], [6,3], [6,4], [6,5], [5,6], [4,6], [3,6], [2,6], [1,6], [0,6], [0,7], [1,7], [2,7], [3,7], [4,7], [5,7], [6,7], [7,7]],
+                        yellow: [[14,6], [13,6], [12,6], [11,6], [10,6], [9,6], [8,5], [8,4], [8,3], [8,2], [8,1], [8,0], [7,0], [6,0], [6,1], [6,2], [6,3], [6,4], [6,5], [5,6], [4,6], [3,6], [2,6], [1,6], [0,6], [0,7], [0,8], [1,8], [2,8], [3,8], [4,8], [5,8], [6,9], [6,10], [6,11], [6,12], [6,13], [6,14], [7,14], [8,14], [8,13], [8,12], [8,11], [8,10], [8,9], [9,8], [10,8], [11,8], [12,8], [13,8], [14,8], [14,7], [13,7], [12,7], [11,7], [10,7], [9,7], [8,7], [7,7]]
+                    };
+                    let path = paths[color];
+                    let start = color === 'red' ? [6,0] : color === 'blue' ? [8,14] : color === 'green' ? [0,8] : [14,6];
+
+                    if (dice === 6 && pieces.some(p => !p.pos)) {
+                        let piece = pieces.find(p => !p.pos);
+                        piece.pos = start;
+                    } else if (pieces.some(p => p.pos)) {
+                        let piece = pieces.find(p => p.pos);
+                        let [r, c] = piece.pos;
+                        let idx = path.findIndex(p => p[0] === r && p[1] === c);
+                        if (idx + dice < path.length) {
+                            piece.pos = path[idx + dice];
+                            // Capture opponent's piece
+                            let opponentPieces = color === this.playerColor ? this.botPieces : this.playerPieces;
+                            let opponentPiece = opponentPieces.find(p => p.pos && p.pos[0] === piece.pos[0] && p.pos[1] === piece.pos[1]);
+                            if (opponentPiece && this.board[piece.pos[0]][piece.pos[1]] !== 1 && this.board[piece.pos[0]][piece.pos[1]] !== 6) {
+                                opponentPiece.pos = null;
+                            }
+                        }
+                    }
+                },
+
+                handleGameEnd() {
+                    if (!this.demo && this.winner) {
+                        this.winAmount = this.betAmount * 10;
+                        this.deposit += this.winAmount - this.betAmount;
+                        this.tickets++;
+                        fetch('/game_activity', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                user_id: {{ user_id|safe }},
+                                game_type: 'ludo',
+                                amount_won: this.winAmount,
+                                amount_lost: this.betAmount,
+                                is_paid: !this.demo
+                            })
+                        });
+                    }
+                    if (this.winner) {
+                        this.triggerConfetti();
+                    }
+                },
+
+                getCellClass(row, col) {
+                    if (this.board[row][col] === 0) return 'bg-white';
+                    if (this.board[row][col] === 1) return 'bg-white'; // Main path
+                    if (this.board[row][col] === 2) return row >= 0 && row < 6 && col >= 0 && col < 6 ? 'bg-red-500' : row === 7 && col <= 6 ? 'bg-red-500' : 'bg-white'; // Red
+                    if (this.board[row][col] === 3) return row >= 9 && row < 15 && col >= 9 && col < 15 ? 'bg-blue-500' : row === 7 && col >= 8 ? 'bg-blue-500' : 'bg-white'; // Blue
+                    if (this.board[row][col] === 4) return row >= 0 && row < 6 && col >= 9 && col < 15 ? 'bg-green-500' : col === 7 && row <= 6 ? 'bg-green-500' : 'bg-white'; // Green
+                    if (this.board[row][col] === 5) return row >= 9 && row < 15 && col >= 0 && col < 6 ? 'bg-yellow-500' : col === 7 && row >= 8 ? 'bg-yellow-500' : 'bg-white'; // Yellow
+                    if (this.board[row][col] === 6) return 'bg-yellow-600'; // Center
+                    return 'bg-gray-700';
+                },
+
+                getCellContent(row, col) {
+                    let playerPiece = this.playerPieces.find(p => p.pos && p.pos[0] === row && p.pos[1] === col);
+                    let botPiece = this.botPieces.find(p => p.pos && p.pos[0] === row && p.pos[1] === col);
+                    if (playerPiece) return this.playerColor.charAt(0).toUpperCase() + playerPiece.id;
+                    if (botPiece) return this.botColor.charAt(0).toUpperCase() + botPiece.id;
+                    if (this.board[row][col] === 1 && (row === 1 && col === 6 || row === 6 && col === 13 || row === 13 && col === 8 || row === 8 && col === 1)) return '★';
+                    return '';
+                },
+
+                triggerConfetti() {
+                    for (let i = 0; i < 50; i++) {
+                        let confetti = document.createElement('div');
+                        confetti.className = 'confetti';
+                        confetti.style.left = Math.random() * 100 + 'vw';
+                        confetti.style.background = ['#facc15', '#3b82f6', '#ef4444', '#10b981'][Math.floor(Math.random() * 4)];
+                        document.body.appendChild(confetti);
+                        setTimeout(() => confetti.remove(), 2000);
+                    }
+                },
+
+                resetGame() {
+                    this.gameStarted = false;
+                    this.board = [];
+                    this.playerPieces = [];
+                    this.botPieces = [];
+                    this.currentDice = null;
+                    this.rollCount = 0;
+                    this.gameOver = false;
+                    this.winner = false;
+                    this.winAmount = 0;
+                    this.betAmount = 1;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

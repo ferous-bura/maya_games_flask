@@ -1,38 +1,306 @@
-{% extends "base.html" %}
-{% block content %}
-<h2>Spin</h2>
-<p>Current Deposit: {{ deposit }} ETB</p>
-<form id="spin-form" method="POST">
-    <div class="mb-3">
-        <label for="bet_amount" class="form-label">Bet Amount (ETB)</label>
-        <input type="number" class="form-control" id="bet_amount" name="bet_amount" min="1" max="{{ deposit }}" required>
-    </div>
-    <button type="submit" class="btn btn-primary">Spin the Wheel</button>
-</form>
-<div id="result" class="mt-3"></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(2160deg); }
+        }
+        .animate-spin-wheel {
+            animation: spin 4s ease-out forwards;
+            transform-origin: center;
+        }
+        .fade-in-out {
+            animation: fadeInOut 1s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #facc15;
+            animation: confettiFall 2s ease-out;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        .wheel-gradient {
+            background: radial-gradient(circle, #1e3a8a, #0f172a);
+        }
+    </style>
+</head>
+<body class="wheel-gradient text-white min-h-screen flex flex-col" x-data="spinGame()">
+    <!-- Status Bar -->
+    <header class="bg-gray-800 p-4 flex justify-between items-center">
+        <div>
+            <span>Deposit: <span x-text="deposit.toFixed(2)"></span> ETB</span> |
+            <span>Bet: <span x-text="betAmount.toFixed(2)"></span> ETB</span> |
+            <span>Win: <span x-text="winAmount.toFixed(2)"></span> ETB</span>
+        </div>
+        <div>
+            <span>Time: <span x-text="currentTime"></span></span> |
+            <span>Tickets: <span x-text="tickets"></span></span>
+        </div>
+    </header>
 
-<script>
-$(document).ready(function() {
-    $('#spin-form').submit(function(e) {
-        e.preventDefault();
-        $.ajax({
-            url: '{{ url_for("play_game", game_type="spin") }}',
-            type: 'POST',
-            data: { bet_amount: $('#bet_amount').val() },
-            success: function(data) {
-                $('#result').html(`<div class="alert alert-${data.status === 'success' ? 'success' : 'danger'}">
-                    ${data.message}<br>
-                    ${data.status === 'success' ? 
-                        `Won: ${data.amount_won} ETB, Lost: ${data.amount_lost} ETB<br>
-                        Multiplier: ${data.details.spin.multiplier}` 
-                        : ''}
-                </div>`);
-            },
-            error: function(xhr) {
-                $('#result').html(`<div class="alert alert-danger">${xhr.responseJSON.message}</div>`);
-            }
-        });
-    });
-});
-</script>
-{% endblock %}
+    <!-- Main Content -->
+    <main class="flex-grow p-4 relative">
+        <div class="max-w-lg mx-auto">
+            <!-- Header -->
+            <h1 class="text-3xl font-bold mb-4 text-teal-400 text-center" x-text="gameStarted ? 'Spinning...' : 'Spin the Wheel!'"></h1>
+
+            <!-- Wheel -->
+            <div class="relative w-96 h-96 mx-auto mb-4">
+                <div 
+                    class="absolute w-full h-full rounded-full overflow-hidden"
+                    :class="{'animate-spin-wheel': gameStarted}"
+                    x-ref="wheel"
+                >
+                    <!-- 16 Segments -->
+                    <div class="absolute w-full h-full bg-red-500" style="clip-path: polygon(50% 50%, 50% 0%, 61.8% 19.1%);"></div>
+                    <div class="absolute w-full h-full bg-orange-500" style="clip-path: polygon(50% 50%, 61.8% 19.1%, 80.9% 38.2%); transform: rotate(22.5deg);"></div>
+                    <div class="absolute w-full h-full bg-yellow-500" style="clip-path: polygon(50% 50%, 80.9% 38.2%, 80.9% 61.8%); transform: rotate(45deg);"></div>
+                    <div class="absolute w-full h-full bg-lime-500" style="clip-path: polygon(50% 50%, 80.9% 61.8%, 61.8% 80.9%); transform: rotate(67.5deg);"></div>
+                    <div class="absolute w-full h-full bg-green-500" style="clip-path: polygon(50% 50%, 61.8% 80.9%, 38.2% 80.9%); transform: rotate(90deg);"></div>
+                    <div class="absolute w-full h-full bg-teal-500" style="clip-path: polygon(50% 50%, 38.2% 80.9%, 19.1% 61.8%); transform: rotate(112.5deg);"></div>
+                    <div class="absolute w-full h-full bg-cyan-500" style="clip-path: polygon(50% 50%, 19.1% 61.8%, 19.1% 38.2%); transform: rotate(135deg);"></div>
+                    <div class="absolute w-full h-full bg-blue-500" style="clip-path: polygon(50% 50%, 19.1% 38.2%, 38.2% 19.1%); transform: rotate(157.5deg);"></div>
+                    <div class="absolute w-full h-full bg-indigo-500" style="clip-path: polygon(50% 50%, 38.2% 19.1%, 50% 0%); transform: rotate(180deg);"></div>
+                    <div class="absolute w-full h-full bg-purple-500" style="clip-path: polygon(50% 50%, 50% 0%, 61.8% 19.1%); transform: rotate(202.5deg);"></div>
+                    <div class="absolute w-full h-full bg-pink-500" style="clip-path: polygon(50% 50%, 61.8% 19.1%, 80.9% 38.2%); transform: rotate(225deg);"></div>
+                    <div class="absolute w-full h-full bg-red-400" style="clip-path: polygon(50% 50%, 80.9% 38.2%, 80.9% 61.8%); transform: rotate(247.5deg);"></div>
+                    <div class="absolute w-full h-full bg-orange-400" style="clip-path: polygon(50% 50%, 80.9% 61.8%, 61.8% 80.9%); transform: rotate(270deg);"></div>
+                    <div class="absolute w-full h-full bg-yellow-400" style="clip-path: polygon(50% 50%, 61.8% 80.9%, 38.2% 80.9%); transform: rotate(292.5deg);"></div>
+                    <div class="absolute w-full h-full bg-lime-400" style="clip-path: polygon(50% 50%, 38.2% 80.9%, 19.1% 61.8%); transform: rotate(315deg);"></div>
+                    <div class="absolute w-full h-full bg-green-400" style="clip-path: polygon(50% 50%, 19.1% 61.8%, 19.1% 38.2%); transform: rotate(337.5deg);"></div>
+                    <!-- Numeric Labels with Emojis -->
+                    <div class="absolute w-full h-full flex items-center justify-center text-sm font-bold">
+                        <span class="absolute" style="transform: translateY(-120px);">1 🍎</span>
+                        <span class="absolute" style="transform: rotate(22.5deg) translateY(-120px);">2 🍌</span>
+                        <span class="absolute" style="transform: rotate(45deg) translateY(-120px);">5 🍊</span>
+                        <span class="absolute" style="transform: rotate(67.5deg) translateY(-120px);">10 🍉</span>
+                        <span class="absolute" style="transform: rotate(90deg) translateY(-120px);">0.5 🍍</span>
+                        <span class="absolute" style="transform: rotate(112.5deg) translateY(-120px);">0 🍒</span>
+                        <span class="absolute" style="transform: rotate(135deg) translateY(-120px);">0 🍇</span>
+                        <span class="absolute" style="transform: rotate(157.5deg) translateY(-120px);">0 🍓</span>
+                        <span class="absolute" style="transform: rotate(180deg) translateY(-120px);">1 🍏</span>
+                        <span class="absolute" style="transform: rotate(202.5deg) translateY(-120px);">2 🍋</span>
+                        <span class="absolute" style="transform: rotate(225deg) translateY(-120px);">5 🥭</span>
+                        <span class="absolute" style="transform: rotate(247.5deg) translateY(-120px);">10 🥝</span>
+                        <span class="absolute" style="transform: rotate(270deg) translateY(-120px);">0.5 🥥</span>
+                        <span class="absolute" style="transform: rotate(292.5deg) translateY(-120px);">0 🍈</span>
+                        <span class="absolute" style="transform: rotate(315deg) translateY(-120px);">0 🥑</span>
+                        <span class="absolute" style="transform: rotate(337.5deg) translateY(-120px);">50 🎉</span>
+                    </div>
+                </div>
+                <!-- Center "SPIN" Button -->
+                <div 
+                    x-show="!gameStarted" 
+                    class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+                >
+                    <button 
+                        class="bg-blue-600 text-white text-xl font-bold px-6 py-3 rounded-full hover:bg-blue-700"
+                        @click="startGame()"
+                        :disabled="betAmount <= 0 && !demo"
+                    >
+                        SPIN
+                    </button>
+                </div>
+                <!-- Pointer -->
+                <div class="absolute top-0 left-1/2 w-0 h-0 border-l-12 border-r-12 border-t-16 border-t-red-600 border-l-transparent border-r-transparent -translate-x-1/2"></div>
+            </div>
+
+            <!-- Selection Controls -->
+            <div 
+                x-show="!gameStarted" 
+                class="flex flex-col space-y-4 mb-4"
+                x-transition:enter="transition ease-out duration-300" 
+                x-transition:enter-start="opacity-0 transform translate-y-4"
+                x-transition:enter-end="opacity-100 transform translate-y-0"
+                x-transition:leave="transition ease-in duration-300"
+                x-transition:leave-start="opacity-100 transform translate-y-0"
+                x-transition:leave-end="opacity-0 transform translate-y-4"
+            >
+                <div class="flex items-center space-x-4 justify-center">
+                    <label>Bet Amount (ETB):</label>
+                    <input 
+                        type="number" 
+                        x-model="betAmount" 
+                        min="1" 
+                        class="bg-gray-700 text-white p-2 rounded w-24"
+                        :disabled="demo"
+                    >
+                </div>
+                <div class="flex items-center space-x-4 justify-center">
+                    <label>Multiplier:</label>
+                    <select x-model="multiplier" class="bg-gray-700 text-white p-2 rounded">
+                        <option value="1">x1</option>
+                        <option value="2">x2</option>
+                        <option value="5">x5</option>
+                    </select>
+                </div>
+            </div>
+            <p 
+                x-show="demo && !gameStarted" 
+                class="text-yellow-400 mb-4 text-center"
+                x-transition.opacity
+            >
+                Demo Mode: No real bets.
+            </p>
+
+            <!-- Gameplay Info -->
+            <div 
+                x-show="gameStarted" 
+                class="mb-4 text-center"
+                x-transition:enter="transition ease-out duration-300" 
+                x-transition:enter-start="opacity-0 transform translate-y-4"
+                x-transition:enter-end="opacity-100 transform translate-y-0"
+                x-transition:leave="transition ease-in duration-300"
+                x-transition:leave-start="opacity-100 transform translate-y-0"
+                x-transition:leave-end="opacity-0 transform translate-y-4"
+            >
+                <p>Result: <span x-text="lastResult"></span></p>
+                <p>Spins: <span x-text="spinCount"></span></p>
+                <button 
+                    class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 mt-4"
+                    @click="resetGame()"
+                >
+                    Spin Again
+                </button>
+            </div>
+        </div>
+
+        <!-- Large Result Display -->
+        <div 
+            x-show="currentResult !== null" 
+            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-50"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-50"
+        >
+            <div 
+                class="w-32 h-32 rounded-full bg-gray-800 flex items-center justify-center text-4xl font-bold fade-in-out border-4"
+                :class="{
+                    'bg-green-600 border-green-400': currentResult !== 0,
+                    'bg-red-600 border-red-400': currentResult === 0
+                }"
+            >
+                <span x-text="currentResult"></span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function spinGame() {
+            return {
+                deposit: {{ deposit|safe }},
+                demo: {{ 'true' if demo else 'false' }},
+                betAmount: 1,
+                winAmount: 0,
+                tickets: 0,
+                multiplier: 1,
+                lastResult: '',
+                spinCount: 0,
+                gameStarted: false,
+                currentTime: new Date().toLocaleTimeString(),
+                currentResult: null,
+
+                init() {
+                    this.updateTime();
+                    setInterval(() => this.updateTime(), 1000);
+                    this.tickets = this.demo ? 1 : 0;
+                },
+
+                updateTime() {
+                    this.currentTime = new Date().toLocaleTimeString();
+                },
+
+                async startGame() {
+                    if (this.betAmount <= 0 && !this.demo) return;
+                    this.gameStarted = true;
+                    this.currentResult = null;
+                    this.lastResult = '';
+
+                    // Simulate spin (4s animation)
+                    await new Promise(resolve => setTimeout(resolve, 4000));
+
+                    // Random result (weighted)
+                    const outcomes = [1, 2, 5, 10, 0.5, 0, 0, 0, 1, 2, 5, 10, 0.5, 0, 0, 50];
+                    const weights = [0.1, 0.1, 0.08, 0.05, 0.08, 0.1, 0.1, 0.1, 0.1, 0.1, 0.08, 0.05, 0.08, 0.1, 0.1, 0.02];
+                    let rand = Math.random(), sum = 0;
+                    let result = 0;
+                    for (let i = 0; i < weights.length; i++) {
+                        sum += weights[i];
+                        if (rand <= sum) {
+                            result = outcomes[i];
+                            break;
+                        }
+                    }
+
+                    // Show large result
+                    this.currentResult = result;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+
+                    // Hide result
+                    this.currentResult = null;
+                    this.lastResult = result;
+                    this.spinCount++;
+
+                    if (!this.demo) {
+                        this.winAmount = this.betAmount * result * this.multiplier;
+                        this.deposit += this.winAmount - this.betAmount;
+                        this.tickets++;
+                        fetch('/game_activity', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                user_id: {{ user_id|safe }},
+                                game_type: 'spin',
+                                amount_won: this.winAmount,
+                                amount_lost: this.betAmount,
+                                is_paid: !this.demo
+                            })
+                        });
+                    }
+
+                    if (this.winAmount > 0) {
+                        this.triggerConfetti();
+                    }
+                },
+
+                triggerConfetti() {
+                    for (let i = 0; i < 50; i++) {
+                        let confetti = document.createElement('div');
+                        confetti.className = 'confetti';
+                        confetti.style.left = Math.random() * 100 + 'vw';
+                        confetti.style.background = ['#facc15', '#3b82f6', '#ef4444', '#10b981'][Math.floor(Math.random() * 4)];
+                        document.body.appendChild(confetti);
+                        setTimeout(() => confetti.remove(), 2000);
+                    }
+                },
+
+                resetGame() {
+                    this.gameStarted = false;
+                    this.currentResult = null;
+                    this.lastResult = '';
+                    this.$refs.wheel.style.transform = 'rotate(0deg)';
+                }
+            };
+        }
+    </script>
+</body>
+</html>
