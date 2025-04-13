@@ -6,7 +6,7 @@ import logging
 
 import app
 
-@app.app.route('/play/<game_type>', methods=['GET', 'POST'])
+@app.app.route('/playzzz/<game_type>', methods=['GET', 'POST'])
 @login_required
 def play_game(game_type):
     if game_type not in ['keno', 'bingo', 'spin', 'ludo']:

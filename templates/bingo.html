@@ -1,55 +1,350 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bingo</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-custom {
+            animation: bounce 0.3s ease;
+        }
+        .fade-in-out {
+            animation: fadeInOut 1s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #facc15;
+            animation: confettiFall 2s ease-out;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
 </head>
-<body>
-    <div class="container mt-4">
-        <h2>Bingo</h2>
-        <p>Current Deposit: {{ deposit }} ETB {% if demo_mode %}(Demo Mode){% endif %}</p>
-        <form id="bingo-form" method="POST">
-            <div class="mb-3">
-                <label for="bet_amount" class="form-label">Bet Amount (ETB)</label>
-                <input type="number" class="form-control" id="bet_amount" name="bet_amount" 
-                       min="1" {% if not demo_mode %}max="{{ deposit }}"{% endif %} required>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col" x-data="bingoGame()">
+    <!-- Status Bar -->
+    <header class="bg-gray-800 p-4 flex justify-between items-center">
+        <div>
+            <span>Deposit: <span x-text="deposit.toFixed(2)"></span> ETB</span> |
+            <span>Bet: <span x-text="betAmount.toFixed(2)"></span> ETB</span> |
+            <span>Win: <span x-text="winAmount.toFixed(2)"></span> ETB</span>
+        </div>
+        <div>
+            <span>Time: <span x-text="currentTime"></span></span> |
+            <span>Tickets: <span x-text="tickets"></span></span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 relative">
+        <div class="max-w-lg mx-auto">
+            <!-- Header -->
+            <h1 class="text-2xl font-bold mb-4 text-teal-400" x-text="gameStarted ? 'Bingo in Progress' : 'Choose Your Cartella'"></h1>
+
+            <!-- Cartella Grid -->
+            <div 
+                class="grid grid-cols-5 gap-1 mb-4 bg-purple-900 p-2 rounded-lg" 
+                :class="{'pointer-events-none': gameStarted}"
+            >
+                <!-- Column Headers -->
+                <div class="text-center font-bold text-yellow-400">B</div>
+                <div class="text-center font-bold text-yellow-400">I</div>
+                <div class="text-center font-bold text-yellow-400">N</div>
+                <div class="text-center font-bold text-yellow-400">G</div>
+                <div class="text-center font-bold text-yellow-400">O</div>
+
+                <!-- Cartella Numbers -->
+                <template x-for="row in 5" :key="row">
+                    <template x-for="col in 5" :key="col">
+                        <div 
+                            class="w-12 h-12 rounded-full flex items-center justify-center text-lg"
+                            :class="{
+                                'bg-gray-700 hover:bg-teal-600 transition': !gameStarted && cartella[row-1][col-1] !== 'FREE' && !calledNumbers.includes(cartella[row-1][col-1]),
+                                'bg-teal-600': cartella[row-1][col-1] !== 'FREE' && !calledNumbers.includes(cartella[row-1][col-1]) && gameStarted,
+                                'bg-green-600 animate-pulse': calledNumbers.includes(cartella[row-1][col-1]),
+                                'bg-yellow-600': cartella[row-1][col-1] === 'FREE',
+                                'bg-red-600': calledNumbers.includes(cartella[row-1][col-1]) && !cartella[row-1][col-1] === 'FREE'
+                            }"
+                        >
+                            <span x-text="cartella[row-1][col-1]"></span>
+                        </div>
+                    </template>
+                </template>
             </div>
-            <button type="submit" class="btn btn-primary">Play Bingo</button>
-        </form>
-        <div id="result" class="mt-3"></div>
-    </div>
+
+            <!-- Selection Controls -->
+            <div 
+                x-show="!gameStarted" 
+                class="flex flex-col space-y-4 mb-4"
+                x-transition:enter="transition ease-out duration-300" 
+                x-transition:enter-start="opacity-0 transform translate-y-4"
+                x-transition:enter-end="opacity-100 transform translate-y-0"
+                x-transition:leave="transition ease-in duration-300"
+                x-transition:leave-start="opacity-100 transform translate-y-0"
+                x-transition:leave-end="opacity-0 transform translate-y-4"
+            >
+                <div class="flex items-center space-x-4">
+                    <label>Bet Amount (ETB):</label>
+                    <input 
+                        type="number" 
+                        x-model="betAmount" 
+                        min="1" 
+                        class="bg-gray-700 text-white p-2 rounded w-24"
+                        :disabled="demo"
+                    >
+                </div>
+                <div class="flex space-x-4">
+                    <button 
+                        class="bg-green-600 px-4 py-2 rounded hover:bg-green-700"
+                        @click="startGame()"
+                        :disabled="betAmount <= 0 && !demo"
+                    >
+                        Play Bingo
+                    </button>
+                    <button 
+                        class="bg-purple-600 px-4 py-2 rounded hover:bg-purple-700"
+                        @click="generateCartella()"
+                    >
+                        New Cartella
+                    </button>
+                </div>
+            </div>
+            <p 
+                x-show="demo && !gameStarted" 
+                class="text-yellow-400 mb-4"
+                x-transition.opacity
+            >
+                Demo Mode: No real bets.
+            </p>
+            <p 
+                x-show="!gameStarted" 
+                x-transition.opacity
+            >
+                Cartella: <span x-text="cartella.flat().filter(n => n !== 'FREE').join(', ')"></span>
+            </p>
+
+            <!-- Gameplay Info -->
+            <div 
+                x-show="gameStarted" 
+                class="mb-4"
+                x-transition:enter="transition ease-out duration-300" 
+                x-transition:enter-start="opacity-0 transform translate-y-4"
+                x-transition:enter-end="opacity-100 transform translate-y-0"
+                x-transition:leave="transition ease-in duration-300"
+                x-transition:leave-start="opacity-100 transform translate-y-0"
+                x-transition:leave-end="opacity-0 transform translate-y-4"
+            >
+                <p>Called: <span x-text="calledNumbers.join(', ')"></span></p>
+                <p>Hits: <span x-text="hits"></span></p>
+                <p>Patterns: <span x-text="patterns.join(', ')"></span></p>
+                <p>Total Called: <span x-text="calledNumbers.length"></span>/75</p>
+                <button 
+                    class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 mt-4"
+                    @click="resetGame()"
+                >
+                    Play Again
+                </button>
+            </div>
+        </div>
+
+        <!-- Large Called Number Display -->
+        <div 
+            x-show="currentCalledNumber !== null" 
+            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-50"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-50"
+        >
+            <div 
+                class="w-32 h-32 rounded-full bg-gray-800 flex items-center justify-center text-5xl font-bold fade-in-out border-4"
+                :class="{
+                    'bg-green-600 border-green-400': cartella.flat().includes(currentCalledNumber),
+                    'bg-red-600 border-red-400': !cartella.flat().includes(currentCalledNumber)
+                }"
+            >
+                <span x-text="currentCalledNumber"></span>
+            </div>
+        </div>
+    </main>
 
     <script>
-        $(document).ready(function() {
-            $('#bingo-form').submit(function(e) {
-                e.preventDefault();
-                $.ajax({
-                    url: '/play/bingo',
-                    type: 'POST',
-                    data: {
-                        bet_amount: $('#bet_amount').val(),
-                        token: new URLSearchParams(window.location.search).get('token'),
-                        demo: '{{ demo_mode }}'
-                    },
-                    success: function(data) {
-                        $('#result').html(`<div class="alert alert-${data.status === 'success' ? 'success' : 'danger'}">
-                            ${data.message}<br>
-                            ${data.status === 'success' ? 
-                                `Won: ${data.amount_won} ETB, Lost: ${data.amount_lost} ETB` 
-                                : ''}
-                        </div>`);
-                    },
-                    error: function(xhr) {
-                        $('#result').html(`<div class="alert alert-danger">${xhr.responseJSON.message}</div>`);
-                    }
-                });
-            });
+        function bingoGame() {
+            return {
+                deposit: {{ deposit|safe }},
+                demo: {{ 'true' if demo else 'false' }},
+                betAmount: 1,
+                winAmount: 0,
+                tickets: 0,
+                cartella: [],
+                calledNumbers: [],
+                hits: 0,
+                patterns: [],
+                gameStarted: false,
+                currentTime: new Date().toLocaleTimeString(),
+                currentCalledNumber: null,
 
-            Telegram.WebApp.ready();
-            Telegram.WebApp.expand();
-        });
+                init() {
+                    this.updateTime();
+                    setInterval(() => this.updateTime(), 1000);
+                    this.tickets = this.demo ? 1 : 0;
+                    this.generateCartella();
+                },
+
+                updateTime() {
+                    this.currentTime = new Date().toLocaleTimeString();
+                },
+
+                generateCartella() {
+                    const ranges = [
+                        [1, 15],   // B
+                        [16, 30],  // I
+                        [31, 45],  // N
+                        [46, 60],  // G
+                        [61, 75]   // O
+                    ];
+                    this.cartella = [];
+                    for (let col = 0; col < 5; col++) {
+                        let colNumbers = [];
+                        for (let row = 0; row < 5; row++) {
+                            if (col === 2 && row === 2) {
+                                colNumbers.push('FREE');
+                            } else {
+                                let num;
+                                do {
+                                    num = Math.floor(Math.random() * (ranges[col][1] - ranges[col][0] + 1)) + ranges[col][0];
+                                } while (colNumbers.includes(num));
+                                colNumbers.push(num);
+                            }
+                        }
+                        this.cartella.push(colNumbers);
+                    }
+                    // Transpose to row-major
+                    this.cartella = this.cartella[0].map((_, i) => this.cartella.map(col => col[i]));
+                },
+
+                checkPatterns() {
+                    const patterns = [];
+                    // Check rows
+                    for (let row = 0; row < 5; row++) {
+                        if (this.cartella[row].every(num => num === 'FREE' || this.calledNumbers.includes(num))) {
+                            patterns.push('Row ' + (row + 1));
+                        }
+                    }
+                    // Check columns
+                    for (let col = 0; col < 5; col++) {
+                        if (this.cartella.every(row => row[col] === 'FREE' || this.calledNumbers.includes(row[col]))) {
+                            patterns.push('Column ' + ['B', 'I', 'N', 'G', 'O'][col]);
+                        }
+                    }
+                    // Check diagonals
+                    if (this.cartella.every((row, i) => row[i] === 'FREE' || this.calledNumbers.includes(row[i]))) {
+                        patterns.push('Diagonal TL-BR');
+                    }
+                    if (this.cartella.every((row, i) => row[4-i] === 'FREE' || this.calledNumbers.includes(row[4-i]))) {
+                        patterns.push('Diagonal TR-BL');
+                    }
+                    // Full house
+                    if (this.cartella.flat().every(num => num === 'FREE' || this.calledNumbers.includes(num))) {
+                        patterns.push('Full House');
+                    }
+                    this.patterns = patterns;
+                    return patterns.length > 0;
+                },
+
+                async startGame() {
+                    if (this.betAmount <= 0 && !this.demo) return;
+                    this.gameStarted = true;
+                    this.calledNumbers = [];
+                    this.hits = 0;
+                    this.patterns = [];
+
+                    // Simulate up to 75 calls or until a win
+                    for (let i = 0; i < 75; i++) {
+                        let nextNum;
+                        do {
+                            nextNum = Math.floor(Math.random() * 75) + 1;
+                        } while (this.calledNumbers.includes(nextNum));
+
+                        // Show large number
+                        this.currentCalledNumber = nextNum;
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+
+                        // Hide large number and update grid
+                        this.currentCalledNumber = null;
+                        this.calledNumbers.push(nextNum);
+                        if (this.cartella.flat().includes(nextNum)) {
+                            this.hits++;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 500));
+
+                        // Check for winning patterns
+                        if (this.checkPatterns()) {
+                            // Confetti effect
+                            this.triggerConfetti();
+                            break;
+                        }
+                    }
+
+                    if (!this.demo) {
+                        // Simplified payout: 5x for first pattern, 20x for full house
+                        this.winAmount = this.patterns.includes('Full House') ? this.betAmount * 20 : this.patterns.length > 0 ? this.betAmount * 5 : 0;
+                        this.deposit += this.winAmount - this.betAmount;
+                        this.tickets++;
+                        fetch('/game_activity', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                user_id: {{ user_id|safe }},
+                                game_type: 'bingo',
+                                amount_won: this.winAmount,
+                                amount_lost: this.betAmount,
+                                is_paid: !this.demo
+                            })
+                        });
+                    }
+                },
+
+                triggerConfetti() {
+                    for (let i = 0; i < 50; i++) {
+                        let confetti = document.createElement('div');
+                        confetti.className = 'confetti';
+                        confetti.style.left = Math.random() * 100 + 'vw';
+                        confetti.style.background = ['#facc15', '#3b82f6', '#ef4444', '#10b981'][Math.floor(Math.random() * 4)];
+                        document.body.appendChild(confetti);
+                        setTimeout(() => confetti.remove(), 2000);
+                    }
+                },
+
+                resetGame() {
+                    this.gameStarted = false;
+                    this.calledNumbers = [];
+                    this.hits = 0;
+                    this.patterns = [];
+                    this.winAmount = 0;
+                    this.betAmount = 1;
+                    this.currentCalledNumber = null;
+                    this.generateCartella();
+                }
+            };
+        }
     </script>
 </body>
 </html>

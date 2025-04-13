@@ -16,7 +16,7 @@ app.secret_key = 'your-secret-key'
 logging.basicConfig(level=logging.DEBUG)
 
 # Telegram bot token
-TELEGRAM_BOT_TOKEN = '8177364831:AAGLNxAx1DKaaRbJZSfHkCeA2lGuDh9EGj8'
+TELEGRAM_BOT_TOKEN = '8177364831:AAFadsqBCE_ZitNNmKfO-fGsV30yYXpkmyY'
 
 # Phone to Telegram ID mapping
 PHONE_TO_TELEGRAM = {
@@ -340,7 +340,8 @@ def play_game(game_type):
             }
         }), 200
 
-    return render_template(f'{game_type}.html', deposit=deposit, demo_mode=demo_mode)
+    # return render_template(f'{game_type}.html', deposit=deposit, demo_mode=demo_mode)
+    return render_template(f"{game_type}.html", user_id=user_id, deposit=deposit, demo=demo_mode)
 
 @app.route('/payment', methods=['POST'])
 @login_required
@@ -457,6 +458,26 @@ def update_phone():
         cursor.execute("UPDATE users SET phone = ? WHERE telegram_id = ?", (phone, telegram_id))
         conn.commit()
     return jsonify({"status": "success", "message": "Phone updated."}), 200
+
+@app.route('/game_activity', methods=['POST'])
+def game_activity():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    game_type = data.get('game_type')
+    amount_won = data.get('amount_won', 0.0)
+    amount_lost = data.get('amount_lost', 0.0)
+    is_paid = data.get('is_paid', False)
+    with sqlite3.connect("transactions.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO game_activities (user_id, game_type, amount_won, amount_lost, is_paid)
+            VALUES (?, ?, ?, ?, ?)
+        """, (user_id, game_type, amount_won, amount_lost, is_paid))
+        if is_paid:
+            cursor.execute("UPDATE users SET deposit = deposit + ? - ? WHERE id = ?",
+                          (amount_won, amount_lost, user_id))
+        conn.commit()
+    return jsonify({"status": "success"}), 200
 
 def send_telegram_message(chat_id, text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
