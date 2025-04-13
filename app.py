@@ -16,7 +16,7 @@ app.secret_key = 'your-secret-key'
 logging.basicConfig(level=logging.DEBUG)
 
 # Telegram bot token
-TELEGRAM_BOT_TOKEN = '6993686742:AAEcsXlDoH57Tn5NSVpWns7zhbfpDYEllp0'
+TELEGRAM_BOT_TOKEN = '6993686742:AAFwPo8LLV5wphtV8bYrNEvlmbte4BMkBTg'
 
 # Phone to Telegram ID mapping
 PHONE_TO_TELEGRAM = {
