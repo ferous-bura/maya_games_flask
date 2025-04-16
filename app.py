@@ -1,12 +1,12 @@
 import threading
-from flask import Flask, request, jsonify, render_template
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import sqlite3
 import requests
 import logging
 import secrets
 import hashlib
 import time
+from flask import Flask, request, jsonify, render_template
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -344,37 +344,100 @@ def play_game(game_type):
     return render_template(f"{game_type}.html", user_id=user_id, deposit=deposit, demo=demo_mode)
 
 @app.route('/payment', methods=['POST'])
-@login_required
 def payment():
-    if not current_user.is_staff:
-        return jsonify({"status": "error", "message": "Staff access only."}), 403
-    data = request.get_json()
-    transaction_code = data.get('transaction_code')
-    amount = float(data.get('amount', 0))
-    payment_method = data.get('payment_method', 'unknown')
-    sender = data.get('sender')
+    logging.info("Payment endpoint called")
+    logging.debug(f"Request data: {request.data}")
+    logging.debug(f"Headers: {request.headers}")
+
+    # Validate and parse JSON
+    try:
+        data = request.get_json(force=True)  # Force parsing in case of incorrect content type
+        if not data:
+            logging.error("Failed to parse JSON: No data provided.")
+            return jsonify({"status": "error", "message": "Invalid or missing JSON payload."}), 400
+    except Exception as e:
+        logging.error(f"Error parsing JSON: {e}")
+        try:
+            # Fallback: Attempt to parse raw data manually
+            raw_data = request.data.decode('utf-8')
+            logging.debug(f"Raw data fallback: {raw_data}")
+            import json
+            data = json.loads(raw_data)
+        except Exception as fallback_error:
+            logging.error(f"Fallback JSON parsing failed: {fallback_error}")
+            return jsonify({"status": "error", "message": "Failed to parse JSON payload."}), 400
+
     raw_message = data.get('raw_message')
+    logging.debug(f"Received payment data: {data}")
 
-    if not transaction_code or amount <= 0:
-        return jsonify({"status": "error", "message": "Invalid transaction data."}), 400
+    if not raw_message:
+        logging.error("Raw message is missing in the request.")
+        return jsonify({"status": "error", "message": "Raw message is required."}), 400
 
-    with sqlite3.connect("transactions.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("UPDATE users SET deposit = deposit + ? WHERE id = ?", (amount, current_user.id))
-        cursor.execute("SELECT deposit FROM users WHERE id = ?", (current_user.id,))
-        total_deposit = cursor.fetchone()[0]
-        cursor.execute("""
-            INSERT INTO transactions (user_id, transaction_code, amount, payment_method, total_deposit, sender, raw_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (current_user.id, transaction_code, amount, payment_method, total_deposit, sender, raw_message))
-        conn.commit()
+    try:
+        # Normalize raw_message by removing extra whitespace and newlines
+        raw_message = " ".join(raw_message.split())
+        logging.debug(f"Normalized raw_message: {raw_message}")
 
-    if current_user.phone in PHONE_TO_TELEGRAM:
-        chat_id = PHONE_TO_TELEGRAM[current_user.phone]
-        msg = f"✅ Payment received!\nAmount: {amount} ETB\nTransaction: {transaction_code}"
-        send_telegram_message(chat_id, msg)
+        # Extract information from the first message format
+        if "You have received ETB" in raw_message:
+            logging.info("Parsing raw_message using the first format.")
+            amount_start = raw_message.find("ETB") + 4
+            amount_end = raw_message.find(" from ")
+            amount = float(raw_message[amount_start:amount_end].replace(",", ""))
+            logging.debug(f"Extracted amount: {amount}")
 
-    return jsonify({"status": "success", "message": f"Payment processed for {current_user.phone}"}), 200
+            sender_start = raw_message.find("from ") + 5
+            sender_end = raw_message.find("(", sender_start)
+            sender = raw_message[sender_start:sender_end].strip()
+            logging.debug(f"Extracted sender: {sender}")
+
+            transaction_start = raw_message.find("Your transaction number is ") + 26
+            transaction_end = raw_message.find(".", transaction_start)
+            transaction_code = raw_message[transaction_start:transaction_end].strip()
+            logging.debug(f"Extracted transaction_code: {transaction_code}")
+
+        # Extract information from the second message format
+        elif "your account" in raw_message and "was credited with ETB" in raw_message:
+            logging.info("Parsing raw_message using the second format.")
+            amount_start = raw_message.find("ETB") + 4
+            amount_end = raw_message.find(" by ")
+            amount = float(raw_message[amount_start:amount_end].replace(",", ""))
+            logging.debug(f"Extracted amount: {amount}")
+
+            sender_start = raw_message.find("by ") + 3
+            sender_end = raw_message.find(".", sender_start)
+            sender = raw_message[sender_start:sender_end].strip()
+            logging.debug(f"Extracted sender: {sender}")
+
+            transaction_start = raw_message.find("Receipt: https://") + 18
+            transaction_end = raw_message.find(" ", transaction_start)
+            transaction_code = raw_message[transaction_start:transaction_end].split("/")[-1]
+            logging.debug(f"Extracted transaction_code: {transaction_code}")
+
+        else:
+            logging.error("Unsupported message format.")
+            return jsonify({"status": "error", "message": "Unsupported message format."}), 400
+
+        # Save the extracted data to the database
+        with sqlite3.connect("transactions.db") as conn:
+            cursor = conn.cursor()
+            logging.info("Inserting transaction into the database.")
+            cursor.execute("""
+                INSERT INTO transactions (user_id, transaction_code, amount, payment_method, sender, raw_message)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (None, transaction_code, amount, "telebirr", sender, raw_message))
+            conn.commit()
+            logging.info("Transaction successfully saved to the database.")
+
+        return jsonify({"status": "success", "message": "Payment processed successfully."}), 200
+
+    except ValueError as ve:
+        logging.error(f"ValueError while processing payment: {ve}")
+        return jsonify({"status": "error", "message": "Failed to parse payment details."}), 400
+    except Exception as e:
+        logging.error(f"Unexpected error while processing payment: {e}")
+        return jsonify({"status": "error", "message": "Failed to process payment."}), 500
 
 @app.route('/process_payment', methods=['POST'])
 def process_payment():

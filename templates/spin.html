@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spin</title>
+    <title>Roulette Spin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -13,7 +13,7 @@
             100% { transform: rotate(2160deg); }
         }
         .animate-spin-wheel {
-            animation: spin 4s ease-out forwards;
+            animation: spin 10s ease-out forwards;
             transform-origin: center;
         }
         .fade-in-out {
@@ -38,93 +38,447 @@
         .wheel-gradient {
             background: radial-gradient(circle, #1e3a8a, #0f172a);
         }
+        .roulette-wheel {
+            position: relative;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 8px solid #DAA520;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            transition: all 0.5s ease;
+            background: #2a2a2a;
+        }
+        .roulette-wheel-small {
+            width: 200px;
+            height: 200px;
+        }
+        .roulette-wheel-large {
+            width: 300px;
+            height: 300px;
+        }
+        .segment {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            clip-path: polygon(50% 50%, 50% 0%, 52.5% 0%);
+            transform-origin: center;
+        }
+        .center-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: #8B4513;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #DAA520;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 0 15px #FFD700, 0 0 30px #FFD700;
+        }
+        .number-label {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            font-size: 0.6rem;
+            font-weight: bold;
+        }
+        .number-label span {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform-origin: 50% var(--radius);
+            transform: translateX(-50%) rotate(var(--angle));
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+        }
+        .number-label .red {
+            background: #ff0000;
+            border: 1px solid #ff6666;
+            color: white;
+        }
+        .number-label .black {
+            background: #000000;
+            border: 1px solid #444444;
+            color: white;
+        }
+        .number-label .green {
+            background: #16a34a;
+            border: 1px solid #4ade80;
+            color: white;
+        }
+        .pointer {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 16px solid #DAA520;
+            transform: translateX(-50%);
+        }
+        .timer {
+            border: 3px solid #4a6a6a;
+            border-radius: 1rem;
+            padding: 0.5rem 1rem;
+            background: #2a3a3a;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+            font-family: monospace;
+        }
+        .stats-table {
+            background: #2a3a3a;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .ticket {
+            background: #2a3a3a;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .ticket-winner {
+            border: 2px solid #22c55e;
+            background: #1a3a2a;
+        }
+        .ticket-win {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);
+        }
+        .button {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .button-green {
+            background: #22c55e;
+        }
+        .button-green:hover {
+            background: #16a34a;
+        }
+        .button-red {
+            background: #ef4444;
+        }
+        .button-red:hover {
+            background: #dc2626;
+        }
+        .button-disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
+        .betting-board {
+            display: grid;
+            gap: 2px;
+            background: #333;
+            padding: 2px;
+            border-radius: 0.5rem;
+        }
+        .bet-option {
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .bet-option:hover {
+            transform: scale(1.05);
+        }
+        .bet-option.red {
+            background: #ef4444;
+            color: white;
+        }
+        .bet-option.black {
+            background: #000000;
+            color: white;
+        }
+        .bet-option.green {
+            background: #16a34a;
+            color: white;
+        }
+        .bet-option.gray {
+            background: #4b5563;
+            color: white;
+        }
+        .bet-option.selected {
+            border: 2px solid #FFD700;
+            box-shadow: 0 0 10px #FFD700;
+        }
+        @media (max-width: 640px) {
+            .roulette-wheel-small {
+                width: 180px;
+                height: 180px;
+            }
+            .roulette-wheel-large {
+                width: 280px;
+                height: 280px;
+            }
+            .center-circle {
+                width: 50px;
+                height: 50px;
+                font-size: 1rem;
+            }
+            .number-label span {
+                font-size: 0.55rem;
+            }
+            .stats-table {
+                font-size: 0.7rem;
+            }
+            .bet-option {
+                font-size: 0.65rem;
+                padding: 0.4rem;
+            }
+        }
     </style>
 </head>
-<body class="wheel-gradient text-white min-h-screen flex flex-col" x-data="spinGame()">
-    <!-- Status Bar -->
+<body class="wheel-gradient text-white min-h-screen flex flex-col" x-data="rouletteGame()">
+    <!-- Header -->
     <header class="bg-gray-800 p-4 flex justify-between items-center">
-        <div>
-            <span>Deposit: <span x-text="deposit.toFixed(2)"></span> ETB</span> |
-            <span>Bet: <span x-text="betAmount.toFixed(2)"></span> ETB</span> |
-            <span>Win: <span x-text="winAmount.toFixed(2)"></span> ETB</span>
+        <div class="flex items-center space-x-2">
+            <span class="text-sm">Game <span x-text="gameCount"></span></span>
+            <span class="timer" x-text="timer"></span>
         </div>
-        <div>
-            <span>Time: <span x-text="currentTime"></span></span> |
-            <span>Tickets: <span x-text="tickets"></span></span>
+        <div class="text-center">
+            <h1 class="text-xl font-bold text-teal-400">Roulette</h1>
+        </div>
+        <div class="text-sm">
+            <span>Deposit: <span x-text="deposit.toFixed(2)"></span> ETB</span> |
+            <span>Tickets: <span x-text="tickets.length"></span></span>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="flex-grow p-4 relative">
-        <div class="max-w-lg mx-auto">
-            <!-- Header -->
-            <h1 class="text-3xl font-bold mb-4 text-teal-400 text-center" x-text="gameStarted ? 'Spinning...' : 'Spin the Wheel!'"></h1>
-
-            <!-- Wheel -->
-            <div class="relative w-96 h-96 mx-auto mb-4">
-                <div 
-                    class="absolute w-full h-full rounded-full overflow-hidden"
-                    :class="{'animate-spin-wheel': gameStarted}"
-                    x-ref="wheel"
+    <main class="flex-grow p-4 relative flex justify-center items-center">
+        <div class="max-w-md mx-auto">
+            <!-- Foldable Rules -->
+            <div class="absolute top-4 right-4 z-10">
+                <button 
+                    class="bg-gray-700 text-white px-3 py-1 rounded text-sm"
+                    @click="showRules = !showRules"
                 >
-                    <!-- 16 Segments -->
-                    <div class="absolute w-full h-full bg-red-500" style="clip-path: polygon(50% 50%, 50% 0%, 61.8% 19.1%);"></div>
-                    <div class="absolute w-full h-full bg-orange-500" style="clip-path: polygon(50% 50%, 61.8% 19.1%, 80.9% 38.2%); transform: rotate(22.5deg);"></div>
-                    <div class="absolute w-full h-full bg-yellow-500" style="clip-path: polygon(50% 50%, 80.9% 38.2%, 80.9% 61.8%); transform: rotate(45deg);"></div>
-                    <div class="absolute w-full h-full bg-lime-500" style="clip-path: polygon(50% 50%, 80.9% 61.8%, 61.8% 80.9%); transform: rotate(67.5deg);"></div>
-                    <div class="absolute w-full h-full bg-green-500" style="clip-path: polygon(50% 50%, 61.8% 80.9%, 38.2% 80.9%); transform: rotate(90deg);"></div>
-                    <div class="absolute w-full h-full bg-teal-500" style="clip-path: polygon(50% 50%, 38.2% 80.9%, 19.1% 61.8%); transform: rotate(112.5deg);"></div>
-                    <div class="absolute w-full h-full bg-cyan-500" style="clip-path: polygon(50% 50%, 19.1% 61.8%, 19.1% 38.2%); transform: rotate(135deg);"></div>
-                    <div class="absolute w-full h-full bg-blue-500" style="clip-path: polygon(50% 50%, 19.1% 38.2%, 38.2% 19.1%); transform: rotate(157.5deg);"></div>
-                    <div class="absolute w-full h-full bg-indigo-500" style="clip-path: polygon(50% 50%, 38.2% 19.1%, 50% 0%); transform: rotate(180deg);"></div>
-                    <div class="absolute w-full h-full bg-purple-500" style="clip-path: polygon(50% 50%, 50% 0%, 61.8% 19.1%); transform: rotate(202.5deg);"></div>
-                    <div class="absolute w-full h-full bg-pink-500" style="clip-path: polygon(50% 50%, 61.8% 19.1%, 80.9% 38.2%); transform: rotate(225deg);"></div>
-                    <div class="absolute w-full h-full bg-red-400" style="clip-path: polygon(50% 50%, 80.9% 38.2%, 80.9% 61.8%); transform: rotate(247.5deg);"></div>
-                    <div class="absolute w-full h-full bg-orange-400" style="clip-path: polygon(50% 50%, 80.9% 61.8%, 61.8% 80.9%); transform: rotate(270deg);"></div>
-                    <div class="absolute w-full h-full bg-yellow-400" style="clip-path: polygon(50% 50%, 61.8% 80.9%, 38.2% 80.9%); transform: rotate(292.5deg);"></div>
-                    <div class="absolute w-full h-full bg-lime-400" style="clip-path: polygon(50% 50%, 38.2% 80.9%, 19.1% 61.8%); transform: rotate(315deg);"></div>
-                    <div class="absolute w-full h-full bg-green-400" style="clip-path: polygon(50% 50%, 19.1% 61.8%, 19.1% 38.2%); transform: rotate(337.5deg);"></div>
-                    <!-- Numeric Labels with Emojis -->
-                    <div class="absolute w-full h-full flex items-center justify-center text-sm font-bold">
-                        <span class="absolute" style="transform: translateY(-120px);">1 🍎</span>
-                        <span class="absolute" style="transform: rotate(22.5deg) translateY(-120px);">2 🍌</span>
-                        <span class="absolute" style="transform: rotate(45deg) translateY(-120px);">5 🍊</span>
-                        <span class="absolute" style="transform: rotate(67.5deg) translateY(-120px);">10 🍉</span>
-                        <span class="absolute" style="transform: rotate(90deg) translateY(-120px);">0.5 🍍</span>
-                        <span class="absolute" style="transform: rotate(112.5deg) translateY(-120px);">0 🍒</span>
-                        <span class="absolute" style="transform: rotate(135deg) translateY(-120px);">0 🍇</span>
-                        <span class="absolute" style="transform: rotate(157.5deg) translateY(-120px);">0 🍓</span>
-                        <span class="absolute" style="transform: rotate(180deg) translateY(-120px);">1 🍏</span>
-                        <span class="absolute" style="transform: rotate(202.5deg) translateY(-120px);">2 🍋</span>
-                        <span class="absolute" style="transform: rotate(225deg) translateY(-120px);">5 🥭</span>
-                        <span class="absolute" style="transform: rotate(247.5deg) translateY(-120px);">10 🥝</span>
-                        <span class="absolute" style="transform: rotate(270deg) translateY(-120px);">0.5 🥥</span>
-                        <span class="absolute" style="transform: rotate(292.5deg) translateY(-120px);">0 🍈</span>
-                        <span class="absolute" style="transform: rotate(315deg) translateY(-120px);">0 🥑</span>
-                        <span class="absolute" style="transform: rotate(337.5deg) translateY(-120px);">50 🎉</span>
+                    Rules
+                </button>
+                <div 
+                    x-show="showRules" 
+                    class="stats-table mt-2 w-64 max-h-96 overflow-y-auto"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 transform scale-90"
+                    x-transition:enter-end="opacity-100 transform scale-100"
+                    x-transition:leave="transition ease-in duration-300"
+                    x-transition:leave-start="opacity-100 transform scale-100"
+                    x-transition:leave-end="opacity-0 transform scale-90"
+                >
+                    <h2 class="text-lg font-bold mb-2">Pay Table</h2>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="flex items-center">
+                            <span class="w-4 h-4 bg-red-500 mr-2"></span>
+                            <span>Color: 2x</span>
+                        </div>
+                        <div>2</div>
+                        <div class="flex items-center">
+                            <span class="w-4 h-4 bg-black mr-2"></span>
+                            <span>Color: 2x</span>
+                        </div>
+                        <div>2</div>
+                        <div class="flex items-center">
+                            <span class="w-4 h-4 bg-green-600 mr-2"></span>
+                            <span>Color: 36x</span>
+                        </div>
+                        <div>36</div>
+                        <div>Number:</div>
+                        <div>36x</div>
+                        <div>Dozen:</div>
+                        <div>3x</div>
+                        <div>Odd/Even:</div>
+                        <div>2x</div>
+                        <div>High/Low:</div>
+                        <div>2x</div>
+                    </div>
+                    <!-- Previous Games -->
+                    <div class="mt-4">
+                        <h2 class="text-lg font-bold mb-2">Previous 6 Games</h2>
+                        <div class="grid grid-cols-3 gap-2 text-sm">
+                            <div># <span x-text="gameCount - 6"></span></div>
+                            <div class="w-6 h-6 rounded-full" :class="getColorClass(previousGames[0])" x-text="previousGames[0]"></div>
+                            <div># <span x-text="gameCount - 3"></span></div>
+                            <div># <span x-text="gameCount - 5"></span></div>
+                            <div class="w-6 h-6 rounded-full" :class="getColorClass(previousGames[1])" x-text="previousGames[1]"></div>
+                            <div># <span x-text="gameCount - 2"></span></div>
+                            <div># <span x-text="gameCount - 4"></span></div>
+                            <div class="w-6 h-6 rounded-full" :class="getColorClass(previousGames[2])" x-text="previousGames[2]"></div>
+                            <div># <span x-text="gameCount - 1"></span></div>
+                        </div>
+                    </div>
+                    <!-- Frequency -->
+                    <div class="mt-4">
+                        <h2 class="text-lg font-bold mb-2">Frequency (Last 200 Draws)</h2>
+                        <div class="grid grid-cols-6 gap-2 text-sm">
+                            <template x-for="num in frequency" :key="num.number">
+                                <div>
+                                    <span :class="getColorClass(num.number)" x-text="num.number"></span>: <span x-text="num.count"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <!-- Colors -->
+                    <div class="mt-4">
+                        <h2 class="text-lg font-bold mb-2">Colors (Last 200 Draws)</h2>
+                        <div class="grid grid-cols-3 gap-2 text-sm">
+                            <div class="flex items-center">
+                                <span class="w-4 h-4 bg-red-500 mr-2"></span>
+                                <span x-text="colorStats.red"></span>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="w-4 h-4 bg-black mr-2"></span>
+                                <span x-text="colorStats.black"></span>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="w-4 h-4 bg-green-600 mr-2"></span>
+                                <span x-text="colorStats.green"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Dozens -->
+                    <div class="mt-4">
+                        <h2 class="text-lg font-bold mb-2">Dozens (Last 200 Draws)</h2>
+                        <div class="grid grid-cols-3 gap-2 text-sm">
+                            <div>1-12: <span x-text="dozenStats['1-12']"></span></div>
+                            <div>13-24: <span x-text="dozenStats['13-24']"></span></div>
+                            <div>25-36: <span x-text="dozenStats['25-36']"></span></div>
+                        </div>
+                    </div>
+                    <!-- Hot/Cold -->
+                    <div class="mt-4">
+                        <h2 class="text-lg font-bold mb-2">Hot/Cold (Last 200 Draws)</h2>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                                <span class="text-orange-400">Hot:</span>
+                                <span x-text="hotNumbers.join(', ')"></span>
+                            </div>
+                            <div>
+                                <span class="text-blue-400">Cold:</span>
+                                <span x-text="coldNumbers.join(', ')"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <!-- Center "SPIN" Button -->
-                <div 
-                    x-show="!gameStarted" 
-                    class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                >
-                    <button 
-                        class="bg-blue-600 text-white text-xl font-bold px-6 py-3 rounded-full hover:bg-blue-700"
-                        @click="startGame()"
-                        :disabled="betAmount <= 0 && !demo"
-                    >
-                        SPIN
-                    </button>
-                </div>
-                <!-- Pointer -->
-                <div class="absolute top-0 left-1/2 w-0 h-0 border-l-12 border-r-12 border-t-16 border-t-red-600 border-l-transparent border-r-transparent -translate-x-1/2"></div>
             </div>
 
-            <!-- Selection Controls -->
+            <!-- Wheel -->
+            <div class="relative flex justify-center mb-4">
+                <div 
+                    class="roulette-wheel"
+                    :class="gameStarted ? 'roulette-wheel-large' : 'roulette-wheel-small'"
+                    :style="gameStarted && gameTimeLeft <= 15 ? {'animation': 'spin 10s ease-out forwards'} : ''"
+                    x-ref="wheel"
+                >
+                    <!-- 37 Segments for European Roulette -->
+                    <div class="segment bg-green-600" style="transform: rotate(0deg);"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(32), 'transform': 'rotate(9.73deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(15), 'transform': 'rotate(19.46deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(19), 'transform': 'rotate(29.19deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(4), 'transform': 'rotate(38.92deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(21), 'transform': 'rotate(48.65deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(2), 'transform': 'rotate(58.38deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(25), 'transform': 'rotate(68.11deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(17), 'transform': 'rotate(77.84deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(34), 'transform': 'rotate(87.57deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(6), 'transform': 'rotate(97.30deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(27), 'transform': 'rotate(107.03deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(13), 'transform': 'rotate(116.76deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(36), 'transform': 'rotate(126.49deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(11), 'transform': 'rotate(136.22deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(30), 'transform': 'rotate(145.95deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(8), 'transform': 'rotate(155.68deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(23), 'transform': 'rotate(165.41deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(10), 'transform': 'rotate(175.14deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(5), 'transform': 'rotate(184.87deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(24), 'transform': 'rotate(194.60deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(16), 'transform': 'rotate(204.33deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(33), 'transform': 'rotate(214.06deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(1), 'transform': 'rotate(223.79deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(20), 'transform': 'rotate(233.52deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(14), 'transform': 'rotate(243.25deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(31), 'transform': 'rotate(252.98deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(9), 'transform': 'rotate(262.71deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(22), 'transform': 'rotate(272.44deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(18), 'transform': 'rotate(282.17deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(29), 'transform': 'rotate(291.90deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(7), 'transform': 'rotate(301.63deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(28), 'transform': 'rotate(311.36deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(12), 'transform': 'rotate(321.09deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(35), 'transform': 'rotate(330.82deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(3), 'transform': 'rotate(340.55deg)' }"></div>
+                    <div class="segment" :style="{ 'backgroundColor': getSegmentColor(26), 'transform': 'rotate(350.28deg)' }"></div>
+                    <!-- Number Labels -->
+                    <div class="number-label">
+                        <span class="green" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '0deg' }">0</span>
+                        <span :class="getNumberClass(32)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '9.73deg' }">32</span>
+                        <span :class="getNumberClass(15)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '19.46deg' }">15</span>
+                        <span :class="getNumberClass(19)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '29.19deg' }">19</span>
+                        <span :class="getNumberClass(4)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '38.92deg' }">4</span>
+                        <span :class="getNumberClass(21)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '48.65deg' }">21</span>
+                        <span :class="getNumberClass(2)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '58.38deg' }">2</span>
+                        <span :class="getNumberClass(25)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '68.11deg' }">25</span>
+                        <span :class="getNumberClass(17)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '77.84deg' }">17</span>
+                        <span :class="getNumberClass(34)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '87.57deg' }">34</span>
+                        <span :class="getNumberClass(6)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '97.30deg' }">6</span>
+                        <span :class="getNumberClass(27)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '107.03deg' }">27</span>
+                        <span :class="getNumberClass(13)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '116.76deg' }">13</span>
+                        <span :class="getNumberClass(36)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '126.49deg' }">36</span>
+                        <span :class="getNumberClass(11)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '136.22deg' }">11</span>
+                        <span :class="getNumberClass(30)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '145.95deg' }">30</span>
+                        <span :class="getNumberClass(8)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '155.68deg' }">8</span>
+                        <span :class="getNumberClass(23)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '165.41deg' }">23</span>
+                        <span :class="getNumberClass(10)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '175.14deg' }">10</span>
+                        <span :class="getNumberClass(5)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '184.87deg' }">5</span>
+                        <span :class="getNumberClass(24)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '194.60deg' }">24</span>
+                        <span :class="getNumberClass(16)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '204.33deg' }">16</span>
+                        <span :class="getNumberClass(33)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '214.06deg' }">33</span>
+                        <span :class="getNumberClass(1)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '223.79deg' }">1</span>
+                        <span :class="getNumberClass(20)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '233.52deg' }">20</span>
+                        <span :class="getNumberClass(14)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '243.25deg' }">14</span>
+                        <span :class="getNumberClass(31)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '252.98deg' }">31</span>
+                        <span :class="getNumberClass(9)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '262.71deg' }">9</span>
+                        <span :class="getNumberClass(22)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '272.44deg' }">22</span>
+                        <span :class="getNumberClass(18)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '282.17deg' }">18</span>
+                        <span :class="getNumberClass(29)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '291.90deg' }">29</span>
+                        <span :class="getNumberClass(7)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '301.63deg' }">7</span>
+                        <span :class="getNumberClass(28)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '311.36deg' }">28</span>
+                        <span :class="getNumberClass(12)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '321.09deg' }">12</span>
+                        <span :class="getNumberClass(35)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '330.82deg' }">35</span>
+                        <span :class="getNumberClass(3)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '340.55deg' }">3</span>
+                        <span :class="getNumberClass(26)" :style="{ '--radius': gameStarted ? '120px' : '80px', '--angle': '350.28deg' }">26</span>
+                    </div>
+                </div>
+                <!-- Center Display -->
+                <div class="center-circle" x-text="currentResult !== null ? currentResult : 'SPIN'"></div>
+                <!-- Pointer -->
+                <div class="pointer"></div>
+            </div>
+
+            <!-- Result Display -->
+            <div class="text-center mb-4">
+                <p>Result: <span x-text="lastResult || 'N/A'"></span></p>
+                <p>Win: <span x-text="winAmount.toFixed(2)"></span> ETB</p>
+            </div>
+
+            <!-- Betting Board -->
             <div 
-                x-show="!gameStarted" 
-                class="flex flex-col space-y-4 mb-4"
+                x-show="!gameStarted"
+                class="mb-4"
                 x-transition:enter="transition ease-out duration-300" 
                 x-transition:enter-start="opacity-0 transform translate-y-4"
                 x-transition:enter-end="opacity-100 transform translate-y-0"
@@ -132,34 +486,180 @@
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform translate-y-4"
             >
-                <div class="flex items-center space-x-4 justify-center">
-                    <label>Bet Amount (ETB):</label>
-                    <input 
-                        type="number" 
-                        x-model="betAmount" 
-                        min="1" 
-                        class="bg-gray-700 text-white p-2 rounded w-24"
-                        :disabled="demo"
-                    >
+                <!-- Bet Amount -->
+                <div class="flex items-center space-x-4 justify-center mb-4">
+                    <label class="text-sm">Bet Amount (ETB):</label>
+                    <div class="flex items-center space-x-2">
+                        <button 
+                            class="button bg-gray-700 text-sm"
+                            @click="betAmount = Math.max(1, betAmount - 1)"
+                        >
+                            -
+                        </button>
+                        <span class="text-sm" x-text="betAmount"></span>
+                        <button 
+                            class="button bg-gray-700 text-sm"
+                            @click="betAmount++"
+                        >
+                            +
+                        </button>
+                    </div>
                 </div>
-                <div class="flex items-center space-x-4 justify-center">
-                    <label>Multiplier:</label>
-                    <select x-model="multiplier" class="bg-gray-700 text-white p-2 rounded">
-                        <option value="1">x1</option>
-                        <option value="2">x2</option>
-                        <option value="5">x5</option>
-                    </select>
+
+                <!-- Exact Number -->
+                <div class="mb-2">
+                    <h3 class="text-sm font-bold mb-1">Exact Number</h3>
+                    <div class="betting-board" style="grid-template-columns: repeat(9, 1fr);">
+                        <div class="bet-option green" @click="setBet('number', '0')" :class="{ 'selected': betType === 'number' && betValue === '0' }">0</div>
+                        <div class="bet-option black" @click="setBet('number', '4')" :class="{ 'selected': betType === 'number' && betValue === '4' }">4</div>
+                        <div class="bet-option black" @click="setBet('number', '8')" :class="{ 'selected': betType === 'number' && betValue === '8' }">8</div>
+                        <div class="bet-option red" @click="setBet('number', '12')" :class="{ 'selected': betType === 'number' && betValue === '12' }">12</div>
+                        <div class="bet-option black" @click="setBet('number', '16')" :class="{ 'selected': betType === 'number' && betValue === '16' }">16</div>
+                        <div class="bet-option black" @click="setBet('number', '20')" :class="{ 'selected': betType === 'number' && betValue === '20' }">20</div>
+                        <div class="bet-option black" @click="setBet('number', '24')" :class="{ 'selected': betType === 'number' && betValue === '24' }">24</div>
+                        <div class="bet-option black" @click="setBet('number', '28')" :class="{ 'selected': betType === 'number' && betValue === '28' }">28</div>
+                        <div class="bet-option red" @click="setBet('number', '32')" :class="{ 'selected': betType === 'number' && betValue === '32' }">32</div>
+                        <div class="bet-option red" @click="setBet('number', '36')" :class="{ 'selected': betType === 'number' && betValue === '36' }">36</div>
+                        <div class="bet-option red" @click="setBet('number', '3')" :class="{ 'selected': betType === 'number' && betValue === '3' }">3</div>
+                        <div class="bet-option red" @click="setBet('number', '7')" :class="{ 'selected': betType === 'number' && betValue === '7' }">7</div>
+                        <div class="bet-option black" @click="setBet('number', '11')" :class="{ 'selected': betType === 'number' && betValue === '11' }">11</div>
+                        <div class="bet-option black" @click="setBet('number', '15')" :class="{ 'selected': betType === 'number' && betValue === '15' }">15</div>
+                        <div class="bet-option red" @click="setBet('number', '19')" :class="{ 'selected': betType === 'number' && betValue === '19' }">19</div>
+                        <div class="bet-option red" @click="setBet('number', '23')" :class="{ 'selected': betType === 'number' && betValue === '23' }">23</div>
+                        <div class="bet-option red" @click="setBet('number', '27')" :class="{ 'selected': betType === 'number' && betValue === '27' }">27</div>
+                        <div class="bet-option black" @click="setBet('number', '31')" :class="{ 'selected': betType === 'number' && betValue === '31' }">31</div>
+                        <div class="bet-option black" @click="setBet('number', '35')" :class="{ 'selected': betType === 'number' && betValue === '35' }">35</div>
+                        <div class="bet-option black" @click="setBet('number', '2')" :class="{ 'selected': betType === 'number' && betValue === '2' }">2</div>
+                        <div class="bet-option black" @click="setBet('number', '6')" :class="{ 'selected': betType === 'number' && betValue === '6' }">6</div>
+                        <div class="bet-option black" @click="setBet('number', '10')" :class="{ 'selected': betType === 'number' && betValue === '10' }">10</div>
+                        <div class="bet-option black" @click="setBet('number', '14')" :class="{ 'selected': betType === 'number' && betValue === '14' }">14</div>
+                        <div class="bet-option black" @click="setBet('number', '18')" :class="{ 'selected': betType === 'number' && betValue === '18' }">18</div>
+                        <div class="bet-option black" @click="setBet('number', '22')" :class="{ 'selected': betType === 'number' && betValue === '22' }">22</div>
+                        <div class="bet-option black" @click="setBet('number', '26')" :class="{ 'selected': betType === 'number' && betValue === '26' }">26</div>
+                        <div class="bet-option black" @click="setBet('number', '30')" :class="{ 'selected': betType === 'number' && betValue === '30' }">30</div>
+                        <div class="bet-option red" @click="setBet('number', '34')" :class="{ 'selected': betType === 'number' && betValue === '34' }">34</div>
+                        <div class="bet-option red" @click="setBet('number', '1')" :class="{ 'selected': betType === 'number' && betValue === '1' }">1</div>
+                        <div class="bet-option red" @click="setBet('number', '5')" :class="{ 'selected': betType === 'number' && betValue === '5' }">5</div>
+                        <div class="bet-option red" @click="setBet('number', '9')" :class="{ 'selected': betType === 'number' && betValue === '9' }">9</div>
+                        <div class="bet-option black" @click="setBet('number', '13')" :class="{ 'selected': betType === 'number' && betValue === '13' }">13</div>
+                        <div class="bet-option red" @click="setBet('number', '17')" :class="{ 'selected': betType === 'number' && betValue === '17' }">17</div>
+                        <div class="bet-option red" @click="setBet('number', '21')" :class="{ 'selected': betType === 'number' && betValue === '21' }">21</div>
+                        <div class="bet-option red" @click="setBet('number', '25')" :class="{ 'selected': betType === 'number' && betValue === '25' }">25</div>
+                        <div class="bet-option black" @click="setBet('number', '29')" :class="{ 'selected': betType === 'number' && betValue === '29' }">29</div>
+                        <div class="bet-option red" @click="setBet('number', '33')" :class="{ 'selected': betType === 'number' && betValue === '33' }">33</div>
+                    </div>
+                </div>
+
+                <!-- Dozens -->
+                <div class="mb-2">
+                    <h3 class="text-sm font-bold mb-1">Dozens</h3>
+                    <div class="betting-board" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="bet-option gray" @click="setBet('dozen', '1-12')" :class="{ 'selected': betType === 'dozen' && betValue === '1-12' }">1-12</div>
+                        <div class="bet-option gray" @click="setBet('dozen', '13-24')" :class="{ 'selected': betType === 'dozen' && betValue === '13-24' }">13-24</div>
+                        <div class="bet-option gray" @click="setBet('dozen', '25-36')" :class="{ 'selected': betType === 'dozen' && betValue === '25-36' }">25-36</div>
+                    </div>
+                </div>
+
+                <!-- Other Bets -->
+                <div class="mb-2">
+                    <h3 class="text-sm font-bold mb-1">Other Bets</h3>
+                    <div class="betting-board" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="bet-option gray" @click="setBet('oddEven', 'even')" :class="{ 'selected': betType === 'oddEven' && betValue === 'even' }">Even</div>
+                        <div class="bet-option gray" @click="setBet('oddEven', 'odd')" :class="{ 'selected': betType === 'oddEven' && betValue === 'odd' }">Odd</div>
+                        <div class="bet-option red" @click="setBet('color', 'red')" :class="{ 'selected': betType === 'color' && betValue === 'red' }">Red</div>
+                        <div class="bet-option black" @click="setBet('color', 'black')" :class="{ 'selected': betType === 'color' && betValue === 'black' }">Black</div>
+                        <div class="bet-option gray" @click="setBet('highLow', 'low')" :class="{ 'selected': betType === 'highLow' && betValue === 'low' }">1-18</div>
+                        <div class="bet-option gray" @click="setBet('highLow', 'high')" :class="{ 'selected': betType === 'highLow' && betValue === 'high' }">19-36</div>
+                    </div>
+                </div>
+
+                <!-- Extra Bets -->
+                <div class="mb-2">
+                    <h3 class="text-sm font-bold mb-1">Extra Bets</h3>
+                    <div class="betting-board" style="grid-template-columns: repeat(2, 1fr);">
+                        <div class="bet-option gray" @click="setBet('extra', '1-18-red')" :class="{ 'selected': betType === 'extra' && betValue === '1-18-red' }">1-18 (Red)</div>
+                        <div class="bet-option gray" @click="setBet('extra', '19-36-red')" :class="{ 'selected': betType === 'extra' && betValue === '19-36-red' }">19-36 (Red)</div>
+                        <div class="bet-option gray" @click="setBet('extra', '1-18-black')" :class="{ 'selected': betType === 'extra' && betValue === '1-18-black' }">1-18 (Black)</div>
+                        <div class="bet-option gray" @click="setBet('extra', '19-36-black')" :class="{ 'selected': betType === 'extra' && betValue === '19-36-black' }">19-36 (Black)</div>
+                        <div class="bet-option gray" @click="setBet('extra', '12-21')" :class="{ 'selected': betType === 'extra' && betValue === '12-21' }">12 & 21</div>
+                        <div class="bet-option gray" @click="setBet('extra', '13-31')" :class="{ 'selected': betType === 'extra' && betValue === '13-31' }">13 & 31</div>
+                        <div class="bet-option gray" @click="setBet('extra', '23-32')" :class="{ 'selected': betType === 'extra' && betValue === '23-32' }">23 & 32</div>
+                        <div class="bet-option gray" @click="setBet('extra', '11-22-33')" :class="{ 'selected': betType === 'extra' && betValue === '11-22-33' }">11 & 22 & 33</div>
+                    </div>
+                </div>
+
+                <!-- Add Ticket -->
+                <div class="flex justify-center">
+                    <button 
+                        class="button button-green text-sm"
+                        @click="addTicket()"
+                        :disabled="selectionTimeLeft <= 3 || !betType"
+                    >
+                        + Add Ticket
+                    </button>
                 </div>
             </div>
             <p 
                 x-show="demo && !gameStarted" 
-                class="text-yellow-400 mb-4 text-center"
+                class="text-yellow-400 mb-4 text-center text-sm"
                 x-transition.opacity
             >
                 Demo Mode: No real bets.
             </p>
 
-            <!-- Gameplay Info -->
+            <!-- Tickets -->
+            <div class="space-y-4 mb-4">
+                <template x-for="(ticket, index) in tickets" :key="index">
+                    <div 
+                        class="ticket flex justify-between items-center"
+                        :class="{'ticket-winner': ticket.isWinner && gameEnded}"
+                    >
+                        <div class="flex items-center space-x-2">
+                            <button 
+                                class="text-red-400 hover:text-red-600"
+                                @click="removeTicket(index)"
+                                x-show="!gameStarted && !hasTickets"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                            <div>
+                                <p class="text-sm">Ticket <span x-text="index + 1"></span></p>
+                                <p class="text-sm">
+                                    <span class="text-teal-400" x-text="ticket.betType + ': ' + ticket.betValue"></span>
+                                </p>
+                                <p class="text-green-400 text-sm" x-show="ticket.isWinner && gameEnded">Winner!</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm" x-text="ticket.betAmount + ' ETB'"></p>
+                            <p class="ticket-win" x-text="(gameEnded && ticket.isWinner) ? ticket.actualWin + ' ETB' : '0.00 ETB'"></p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- BET/Cancel Button -->
+            <div x-show="!gameStarted">
+                <button 
+                    x-show="!hasTickets"
+                    class="button button-green w-full py-3 text-lg"
+                    @click="registerTickets()"
+                    :disabled="tickets.length === 0"
+                >
+                    BET
+                </button>
+                <button 
+                    x-show="hasTickets"
+                    class="button button-red w-full py-3 text-lg"
+                    @click="cancelTickets()"
+                >
+                    Cancel
+                </button>
+            </div>
+
+            <!-- Spin Again Button -->
             <div 
                 x-show="gameStarted" 
                 class="mb-4 text-center"
@@ -170,118 +670,252 @@
                 x-transition:leave-start="opacity-100 transform translate-y-0"
                 x-transition:leave-end="opacity-0 transform translate-y-4"
             >
-                <p>Result: <span x-text="lastResult"></span></p>
-                <p>Spins: <span x-text="spinCount"></span></p>
                 <button 
-                    class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 mt-4"
+                    class="button button-green w-full py-3 text-lg"
                     @click="resetGame()"
+                    :disabled="!gameEnded"
                 >
                     Spin Again
                 </button>
             </div>
         </div>
-
-        <!-- Large Result Display -->
-        <div 
-            x-show="currentResult !== null" 
-            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 scale-50"
-            x-transition:enter-end="opacity-100 scale-100"
-            x-transition:leave="transition ease-in duration-200"
-            x-transition:leave-start="opacity-100 scale-100"
-            x-transition:leave-end="opacity-0 scale-50"
-        >
-            <div 
-                class="w-32 h-32 rounded-full bg-gray-800 flex items-center justify-center text-4xl font-bold fade-in-out border-4"
-                :class="{
-                    'bg-green-600 border-green-400': currentResult !== 0,
-                    'bg-red-600 border-red-400': currentResult === 0
-                }"
-            >
-                <span x-text="currentResult"></span>
-            </div>
-        </div>
     </main>
-
     <script>
-        function spinGame() {
+        function rouletteGame() {
             return {
-                deposit: {{ deposit|safe }},
-                demo: {{ 'true' if demo else 'false' }},
+                deposit: 1000.00,
+                demo: true,
                 betAmount: 1,
+                betType: null,
+                betValue: null,
                 winAmount: 0,
-                tickets: 0,
-                multiplier: 1,
-                lastResult: '',
-                spinCount: 0,
+                tickets: [],
+                gameCount: 146,
                 gameStarted: false,
-                currentTime: new Date().toLocaleTimeString(),
+                gameEnded: false,
                 currentResult: null,
-
+                lastResult: '',
+                previousGames: [9, 0, 34, 6, 14, 9],
+                frequency: [
+                    { number: 1, count: 2 }, { number: 2, count: 13 }, { number: 3, count: 14 },
+                    { number: 4, count: 3 }, { number: 5, count: 15 }, { number: 6, count: 8 }
+                ],
+                colorStats: { red: 90, black: 104, green: 6 },
+                dozenStats: { '1-12': 63, '13-24': 65, '25-36': 66 },
+                hotNumbers: [34, 9, 6, 35, 33],
+                coldNumbers: [10, 2, 29, 7, 1],
+                timer: '00:15',
+                selectionTimeLeft: 15,
+                gameTimeLeft: 10, // Reduced spin time for faster cycles
+                showRules: false,
+    
                 init() {
-                    this.updateTime();
-                    setInterval(() => this.updateTime(), 1000);
-                    this.tickets = this.demo ? 1 : 0;
+                    this.resetGame(); // Initial reset to start in selection mode
                 },
-
-                updateTime() {
-                    this.currentTime = new Date().toLocaleTimeString();
-                },
-
-                async startGame() {
-                    if (this.betAmount <= 0 && !this.demo) return;
-                    this.gameStarted = true;
-                    this.currentResult = null;
-                    this.lastResult = '';
-
-                    // Simulate spin (4s animation)
-                    await new Promise(resolve => setTimeout(resolve, 4000));
-
-                    // Random result (weighted)
-                    const outcomes = [1, 2, 5, 10, 0.5, 0, 0, 0, 1, 2, 5, 10, 0.5, 0, 0, 50];
-                    const weights = [0.1, 0.1, 0.08, 0.05, 0.08, 0.1, 0.1, 0.1, 0.1, 0.1, 0.08, 0.05, 0.08, 0.1, 0.1, 0.02];
-                    let rand = Math.random(), sum = 0;
-                    let result = 0;
-                    for (let i = 0; i < weights.length; i++) {
-                        sum += weights[i];
-                        if (rand <= sum) {
-                            result = outcomes[i];
-                            break;
+    
+                updateTimer() {
+                    if (!this.gameStarted) {
+                        if (this.selectionTimeLeft > 0) {
+                            this.selectionTimeLeft--;
+                            this.timer = this.formatTime(this.selectionTimeLeft);
+                            if (this.selectionTimeLeft === 0) {
+                                this.startGame();
+                            }
+                        }
+                    } else if (this.gameStarted && !this.gameEnded) {
+                        if (this.gameTimeLeft > 0) {
+                            this.gameTimeLeft--;
+                            this.timer = this.formatTime(this.gameTimeLeft);
+                            if (this.gameTimeLeft === 0) {
+                                this.endGame();
+                            }
                         }
                     }
-
-                    // Show large result
-                    this.currentResult = result;
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-
-                    // Hide result
+                },
+    
+                formatTime(totalSeconds) {
+                    const seconds = Math.floor(totalSeconds % 60);
+                    return `00:${seconds.toString().padStart(2, '0')}`;
+                },
+    
+                getSegmentColor(number) {
+                    if (number === 0) return '#16a34a'; // Green for 0
+                    const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+                    return redNumbers.includes(number) ? '#ef4444' : '#000000';
+                },
+    
+                getColorClass(number) {
+                    if (number === 0) return 'bg-green-600 text-white';
+                    const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+                    return redNumbers.includes(number) ? 'bg-red-500 text-white' : 'bg-black text-white';
+                },
+    
+                getNumberClass(number) {
+                    if (number === 0) return 'green';
+                    const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+                    return redNumbers.includes(number) ? 'red' : 'black';
+                },
+    
+                setBet(type, value) {
+                    this.betType = type;
+                    this.betValue = value;
+                },
+    
+                addTicket() {
+                    if (this.selectionTimeLeft <= 0 || !this.betType) return;
+                    this.tickets.push({
+                        betAmount: this.betAmount,
+                        betType: this.betType,
+                        betValue: this.betValue,
+                        actualWin: 0,
+                        isWinner: false
+                    });
+                    this.betType = null;
+                    this.betValue = null;
+                },
+    
+                removeTicket(index) {
+                    this.tickets.splice(index, 1);
+                },
+    
+                async startGame() {
+                    if (this.selectionTimeLeft > 0) return; // Ensure timer has reached 0
+    
+                    this.gameStarted = true;
+                    this.gameEnded = false;
+                    this.gameTimeLeft = 10;
                     this.currentResult = null;
+                    this.lastResult = '';
+                    this.timer = this.formatTime(this.gameTimeLeft);
+    
+                    // 10 seconds for spinning
+                    this.$refs.wheel.style.animation = 'spin 10s ease-out forwards';
+                    await new Promise(resolve => setTimeout(resolve, 10000));
+                    this.$refs.wheel.style.animation = ''; // Stop animation
+    
+                    // Random result (0-36)
+                    const result = Math.floor(Math.random() * 37);
+                    this.currentResult = result;
                     this.lastResult = result;
-                    this.spinCount++;
-
+    
+                    // Update game statistics
+                    this.gameCount++;
+                    this.previousGames.unshift(result);
+                    if (this.previousGames.length > 6) this.previousGames.pop();
+    
+                    // Calculate win based on tickets
+                    this.winAmount = 0;
+                    this.tickets.forEach(ticket => {
+                        let win = 0;
+                        // ... (WIN CALCULATION LOGIC AS BEFORE) ...
+                        if (ticket.betType === 'color') {
+                            const resultColor = result === 0 ? 'green' : this.getSegmentColor(result) === '#ef4444' ? 'red' : 'black';
+                            if (resultColor === ticket.betValue) {
+                                win = ticket.betAmount * (resultColor === 'green' ? 36 : 2);
+                                ticket.isWinner = true;
+                            }
+                        } else if (ticket.betType === 'number') {
+                            if (parseInt(ticket.betValue) === result) {
+                                win = ticket.betAmount * 36;
+                                ticket.isWinner = true;
+                            }
+                        } else if (ticket.betType === 'dozen') {
+                            const dozen = result === 0 ? null : result <= 12 ? '1-12' : result <= 24 ? '13-24' : '25-36';
+                            if (dozen === ticket.betValue) {
+                                win = ticket.betAmount * 3;
+                                ticket.isWinner = true;
+                            }
+                        } else if (ticket.betType === 'oddEven') {
+                            const isOdd = result % 2 !== 0;
+                            if ((ticket.betValue === 'odd' && isOdd) || (ticket.betValue === 'even' && !isOdd && result !== 0)) {
+                                win = ticket.betAmount * 2;
+                                ticket.isWinner = true;
+                            }
+                        } else if (ticket.betType === 'highLow') {
+                            const isHigh = result >= 19 && result <= 36;
+                            if ((ticket.betValue === 'high' && isHigh) || (ticket.betValue === 'low' && !isHigh && result !== 0)) {
+                                win = ticket.betAmount * 2;
+                                ticket.isWinner = true;
+                            }
+                        } else if (ticket.betType === 'extra') {
+                            if (ticket.betValue === '1-18-red') {
+                                const isLow = result >= 1 && result <= 18;
+                                const isRed = this.getSegmentColor(result) === '#ef4444';
+                                if (isLow && isRed) {
+                                    win = ticket.betAmount * 3;
+                                    ticket.isWinner = true;
+                                }
+                            } else if (ticket.betValue === '19-36-red') {
+                                const isHigh = result >= 19 && result <= 36;
+                                const isRed = this.getSegmentColor(result) === '#ef4444';
+                                if (isHigh && isRed) {
+                                    win = ticket.betAmount * 3;
+                                    ticket.isWinner = true;
+                                }
+                            } else if (ticket.betValue === '1-18-black') {
+                                const isLow = result >= 1 && result <= 18;
+                                const isBlack = this.getSegmentColor(result) === '#000000';
+                                if (isLow && isBlack) {
+                                    win = ticket.betAmount * 3;
+                                    ticket.isWinner = true;
+                                }
+                            } else if (ticket.betValue === '19-36-black') {
+                                const isHigh = result >= 19 && result <= 36;
+                                const isBlack = this.getSegmentColor(result) === '#000000';
+                                if (isHigh && isBlack) {
+                                    win = ticket.betAmount * 3;
+                                    ticket.isWinner = true;
+                                }
+                            } else if (ticket.betValue === '12-21') {
+                                if (result === 12 || result === 21) {
+                                    win = ticket.betAmount * 18;
+                                    ticket.isWinner = true;
+                                }
+                            } else if (ticket.betValue === '13-31') {
+                                if (result === 13 || result === 31) {
+                                    win = ticket.betAmount * 18;
+                                    ticket.isWinner = true;
+                                }
+                            } else if (ticket.betValue === '23-32') {
+                                if (result === 23 || result === 32) {
+                                    win = ticket.betAmount * 18;
+                                    ticket.isWinner = true;
+                                }
+                            } else if (ticket.betValue === '11-22-33') {
+                                if (result === 11 || result === 22 || result === 33) {
+                                    win = ticket.betAmount * 12;
+                                    ticket.isWinner = true;
+                                }
+                            }
+                        }
+                        ticket.actualWin = win.toFixed(2);
+                        this.winAmount += win;
+                    });
+    
                     if (!this.demo) {
-                        this.winAmount = this.betAmount * result * this.multiplier;
-                        this.deposit += this.winAmount - this.betAmount;
-                        this.tickets++;
-                        fetch('/game_activity', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                user_id: {{ user_id|safe }},
-                                game_type: 'spin',
-                                amount_won: this.winAmount,
-                                amount_lost: this.betAmount,
-                                is_paid: !this.demo
-                            })
+                        this.tickets.forEach(ticket => {
+                            this.deposit -= ticket.betAmount;
+                            if (ticket.isWinner) {
+                                this.deposit += parseFloat(ticket.actualWin);
+                            }
                         });
                     }
-
+    
                     if (this.winAmount > 0) {
                         this.triggerConfetti();
                     }
+    
+                    this.gameEnded = true;
+                    this.timerInterval = setInterval(() => this.updateTimer(), 1000); // Restart timer for end phase
+                    setTimeout(() => this.resetGame(), 5000); // Short delay before resetting
                 },
-
+    
+                endGame() {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = setInterval(() => this.updateTimer(), 1000); // Restart timer for end phase
+                    setTimeout(() => this.resetGame(), 5000); // Short delay before resetting
+                },
+    
                 triggerConfetti() {
                     for (let i = 0; i < 50; i++) {
                         let confetti = document.createElement('div');
@@ -292,12 +926,20 @@
                         setTimeout(() => confetti.remove(), 2000);
                     }
                 },
-
+    
                 resetGame() {
+                    clearInterval(this.timerInterval);
                     this.gameStarted = false;
+                    this.gameEnded = false;
                     this.currentResult = null;
                     this.lastResult = '';
+                    this.winAmount = 0;
+                    this.tickets = [];
                     this.$refs.wheel.style.transform = 'rotate(0deg)';
+                    this.selectionTimeLeft = 15;
+                    this.gameTimeLeft = 10;
+                    this.timer = this.formatTime(this.selectionTimeLeft);
+                    this.timerInterval = setInterval(() => this.updateTimer(), 1000);
                 }
             };
         }
