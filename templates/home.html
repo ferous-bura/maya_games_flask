@@ -116,8 +116,9 @@
         <!-- Game Selection -->
         <section class="mb-6">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Play a Game</h2>
-            <div class="grid grid-cols-1 gap-4">
-                {% for game in [('keno', 'Keno'), ('spin', 'Spin'), ('bingo', 'Bingo'), ('ludo', 'Ludo')] %}
+            <div class="grid grid-cols-1 gap-4"> 
+                <!-- ('keno', 'Keno'),  -->
+                {% for game in [('spin', 'Spin'), ('bingo', 'Bingo'), ('ludo', 'Ludo')] %}
                 <a href="/play/{{ game[0] }}?token={{ request.args.get('token') }}&demo={{ demo_mode }}"
                     class="block bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                     <img src="/static/{{ game[0] }}.jpg" alt="{{ game[1] }}" data-src="/static/{{ game[0] }}.jpg"

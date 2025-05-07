@@ -3,7 +3,7 @@ import logging
 import secrets
 import time
 from flask import Blueprint, Flask, redirect, render_template, request, jsonify
-from flask_login import LoginManager, current_user
+from flask_login import current_user
 
 from utils import BaseUrl, generate_user_token
 

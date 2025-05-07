@@ -35,7 +35,7 @@ login_manager.login_view = 'login'
 
 # Register blueprints
 app.register_blueprint(bingo_blueprint, url_prefix='/bingo')
-app.register_blueprint(keno_blueprint, url_prefix='/keno')
+# app.register_blueprint(keno_blueprint, url_prefix='/keno')
 app.register_blueprint(play_blueprint, url_prefix='/play')
 app.register_blueprint(payment_blueprint, url_prefix='/payment')
 

@@ -1,12 +1,9 @@
 import sqlite3
 import requests
 import logging
-import secrets
 import time
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
-from apscheduler.schedulers.background import BackgroundScheduler
-import uuid
 
 from utils import BaseUrl
 from src.keno import KENO_RTP
