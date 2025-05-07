@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
 
 from utils import BaseUrl
-from src.keno import KENO_RTP
+BINGO_RTP = 0.92
 
 # Add logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -95,7 +95,7 @@ def bingo_place_bet():
             required_patterns = 1 if pattern_type == 'single' else 2
             winnings = 0
             if len(called_numbers) >= 4:  # Minimum draws for a win
-                winnings = total_bet * (5 if pattern_type == 'single' else 10) * KENO_RTP
+                winnings = total_bet * (5 if pattern_type == 'single' else 10) * BINGO_RTP
 
             # Update user balance and round stats
             cursor.execute("UPDATE users SET deposit = deposit - ? + ? WHERE id = ?", (total_bet, winnings, user_id))
