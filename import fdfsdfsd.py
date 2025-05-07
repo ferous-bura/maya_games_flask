@@ -81,7 +81,7 @@ add_round_id_to_game_activities()
 add_numbers_to_game_activities()
 
 
-@app.route('/bot/full_status', methods=['POST'])
+@app.route('/full_status', methods=['POST'])
 def full_status():
     data = request.get_json()
     telegram_id = data.get('telegram_id')
@@ -125,7 +125,7 @@ def full_status():
         logging.error(f"Database error in full_status for {telegram_id}: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/bot/register', methods=['POST'])
+@app.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
     required_fields = ['phone', 'username', 'full_name', 'telegram_id']
@@ -162,7 +162,7 @@ def register():
         logging.error(f"Database error in register: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/bot/notify', methods=['POST'])
+@app.route('/notify', methods=['POST'])
 def notify():
     data = request.get_json()
     telegram_id = data.get('telegram_id')
@@ -186,7 +186,7 @@ def notify():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-@app.route('/bot/generate_token', methods=['POST'])
+@app.route('/generate_token', methods=['POST'])
 def generate_token():
     data = request.get_json()
     telegram_id = data.get('telegram_id')
@@ -197,7 +197,7 @@ def generate_token():
         return jsonify({"status": "error", "message": "Failed to generate token."}), 500
     return jsonify({"status": "success", "token": token}), 200
 
-@app.route('/bot/check_transaction', methods=['POST'])
+@app.route('/check_transaction', methods=['POST'])
 def check_transaction():
     data = request.get_json()
     transaction_number = data.get('transaction_number')

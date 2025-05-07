@@ -1,0 +1,26 @@
+@keyframes roll {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.animate-roll-dice {
+    animation: roll 0.5s ease-out;
+}
+.fade-in-out {
+    animation: fadeInOut 1s ease-in-out;
+}
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.5); }
+}
+.confetti {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #facc15;
+    animation: confettiFall 2s ease-out;
+}
+@keyframes confettiFall {
+    0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}

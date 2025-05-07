@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        img[data-src] { opacity: 0; transition: opacity 0.3s; }
+        img[data-src].loaded { opacity: 1; }
+        html, body { height: 100%; margin: 0; overflow: hidden; }
+        .container { height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+        .game-card img { height: 80px; }
+        .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .collapsible-content.open { max-height: 500px; }
+        .nav-menu { transition: transform 0.3s ease-in-out; }
+        .nav-menu.hidden { transform: translateX(100%); }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <div class="container mx-auto px-2 sm:px-4 h-full flex flex-col">
+        <!-- Navigation Menu (Collapsible) -->
+        <nav class="fixed inset-0 bg-gray-800 bg-opacity-90 z-50 nav-menu hidden md:static md:bg-transparent md:flex md:items-center md:justify-between">
+            <div class="flex justify-between items-center p-4 md:p-0">
+                <h2 class="text-white md:text-gray-800 text-lg font-semibold">Menu</h2>
+                <button onclick="toggleNav()" class="text-white md:hidden">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex flex-col p-4 space-y-4 md:flex-row md:space-y-0 md:space-x-4 md:p-0">
+                <a href="/transactions?token={{ request.args.get('token') }}" class="text-blue-300 md:text-blue-600 hover:underline">Transaction History</a>
+                <a href="/game_history?token={{ request.args.get('token') }}" class="text-blue-300 md:text-blue-600 hover:underline">Game History</a>
+                <a href="https://t.me/gamer_gr_bot" target="_blank" class="text-blue-300 md:text-blue-600 hover:underline">Telegram Bot</a>
+                <a href="/support" class="text-blue-300 md:text-blue-600 hover:underline">Support</a>
+            </div>
+        </nav>
+
+        <!-- Header with Profile and Balance -->
+        <header class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-xl shadow-lg flex items-center justify-between">
+            <div class="flex items-center">
+                <img src="{{ photo_url }}" alt="User Photo" class="w-12 h-12 rounded-full mr-3 object-cover border-2 border-white" onerror="this.src='/static/default_user.jpg'">
+                <div>
+                    <h1 class="text-lg font-bold">{{ greeting }}</h1>
+                    <p class="text-xs">Balance: {{ deposit }} ETB</p>
+                    <p class="text-xs italic">{% if demo_mode %}Demo Mode{% else %}Real Mode{% endif %}</p>
+                </div>
+            </div>
+            <button onclick="toggleNav()" class="md:hidden text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- Welcome Banner for New Users -->
+        {% if is_new_user %}
+        <section class="bg-blue-100 p-3 rounded-lg my-2 animate-fade-in">
+            <h2 class="text-base font-semibold text-blue-800">Welcome! 🎉</h2>
+            <p class="text-xs text-gray-700 mt-1">Get started:</p>
+            <ol class="list-decimal list-inside text-xs text-gray-700 mt-1">
+                <li>Deposit funds via /deposit (min 20 ETB).</li>
+                <li>Choose a game below.</li>
+                <li>Check balance with /balance.</li>
+            </ol>
+            {% if deposit == 0 %}
+            <a href="https://t.me/gamer_gr_bot" target="_blank" class="mt-2 inline-block bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs">Deposit Now</a>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <!-- Pending Deposits -->
+        {% if not is_new_user and pending_deposits %}
+        <section class="bg-yellow-100 p-3 rounded-lg my-2 animate-fade-in">
+            <h2 class="text-base font-semibold text-yellow-800">Pending Deposits</h2>
+            <ul class="list-disc list-inside text-xs text-gray-700 mt-1">
+                {% for p in pending_deposits %}
+                <li>{{ p.amount }} ETB via {{ p.method }} ({{ p.transaction_number }})</li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        <!-- Language Selector -->
+        <section class="my-2">
+            <select onchange="changeLanguage(this.value)" class="w-full bg-gray-200 text-gray-800 px-3 py-1 rounded-lg text-sm">
+                {% for lang in languages %}
+                <option value="{{ lang.code }}" {% if lang.code == current_language %}selected{% endif %}>{{ lang.name }}</option>
+                {% endfor %}
+            </select>
+        </section>
+
+        <!-- Game Selection (Compact Grid) -->
+        <section class="my-2 flex-grow">
+            <h2 class="text-base font-semibold text-gray-800 mb-2">Play a Game</h2>
+            <div class="grid grid-cols-2 gap-2">
+                {% for game in [('keno', 'Keno'), ('spin', 'Spin'), ('bingo', 'Bingo'), ('ludo', 'Ludo')] %}
+                <a href="/play/{{ game[0] }}?token={{ request.args.get('token') }}&demo={{ demo_mode }}" class="game-card block bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                    <img src="/static/{{ game[0] }}.jpg" alt="{{ game[1] }}" data-src="/static/{{ game[0] }}.jpg" class="w-full object-cover loaded">
+                    <div class="p-2">
+                        <h3 class="text-sm font-semibold text-gray-800">{{ game[1] }}</h3>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Leaderboard (Collapsible) -->
+        {% if leaderboard %}
+        <section class="my-2">
+            <button class="w-full text-left bg-gray-200 p-2 rounded-lg text-sm font-semibold text-gray-800 flex justify-between items-center" onclick="toggleCollapse('leaderboard')">
+                <span>Recent Wins 🏆</span>
+                <span>▼</span>
+            </button>
+            <div id="leaderboard" class="collapsible-content bg-white rounded-lg shadow-md p-2 mt-1 hidden">
+                {% for win in leaderboard %}
+                <div class="flex justify-between items-center py-1 text-xs text-gray-700 border-b last:border-b-0">
+                    <span>{{ win.username }} won {{ win.amount_won }} ETB</span>
+                    <span>{{ win.game_type|capitalize }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Help Section (Collapsible) -->
+        <section class="my-2">
+            <button class="w-full text-left bg-gray-200 p-2 rounded-lg text-sm font-semibold text-gray-800 flex justify-between items-center" onclick="toggleCollapse('help')">
+                <span>Help & How to Play</span>
+                <span>▼</span>
+            </button>
+            <div id="help" class="collapsible-content bg-white rounded-lg p-2 mt-1 hidden">
+                {% for q, desc, img in [
+                ('How do I play Keno?', 'Select 10 numbers from 1 to 80. Match 5+ to win!', 'keno'),
+                ('How do I play Spin?', 'Bet and spin the wheel for multipliers (0.5x-5x)!', 'spin'),
+                ('How do I play Bingo?', 'Complete a line on a 5x5 grid to win!', 'bingo'),
+                ('How do I play Ludo?', 'Roll dice, move pieces to the center to win!', 'ludo'),
+                ('How do I deposit?', 'Use /deposit in Telegram to add funds.', 'deposit')
+                ] %}
+                <div class="bg-gray-100 rounded-lg mb-1">
+                    <button class="w-full text-left p-2 text-xs text-gray-800 font-medium flex justify-between items-center" onclick="toggleCollapse('q{{ loop.index }}')">
+                        <span>{{ q }}</span>
+                        <span>▼</span>
+                    </button>
+                    <div id="q{{ loop.index }}" class="collapsible-content hidden p-2 bg-gray-50">
+                        <p class="text-xs text-gray-700">{{ desc }}</p>
+                        <img src="/static/{{ img }}1.jpg" alt="{{ q }}" data-src="/static/{{ img }}1.jpg" class="mt-1 w-full h-16 object-cover rounded loaded">
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Refer a Friend -->
+        <section class="my-2">
+            <h2 class="text-base font-semibold text-gray-800 mb-2">Invite Friends</h2>
+            <p class="text-xs text-gray-700 mb-2">Share your referral link and earn 10 ETB when your friend makes their first deposit!</p>
+            <div class="flex items-center space-x-2">
+                <input id="referralLink" type="text" class="w-full bg-gray-100 px-3 py-1 rounded-lg text-xs" readonly>
+                <button onclick="copyReferralLink()" class="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 text-xs">Copy</button>
+            </div>
+            <button onclick="postStory()" class="mt-2 w-full bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-xs">Share to Telegram Story</button>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 text-white p-2 text-center">
+            <p class="text-xs">Game Hub © 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        function toggleCollapse(id) {
+            const element = document.getElementById(id);
+            element.classList.toggle('hidden');
+            element.classList.toggle('open');
+            const button = element.previousElementSibling.querySelector('span:last-child');
+            button.textContent = element.classList.contains('hidden') ? '▼' : '▲';
+        }
+
+        function toggleNav() {
+            const nav = document.querySelector('.nav-menu');
+            nav.classList.toggle('hidden');
+        }
+
+        function changeLanguage(lang) {
+            fetch('/bot/update_language', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ telegram_id: '{{ user_id }}', language: lang })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        window.location.reload();
+                    } else {
+                        alert('Failed to change language: ' + data.message);
+                    }
+                })
+                .catch(error => alert('Error changing language: ' + error));
+        }
+
+        function copyReferralLink() {
+            const input = document.getElementById('referralLink');
+            input.select();
+            document.execCommand('copy');
+            alert('Referral link copied!');
+        }
+
+        function postStory() {
+            fetch('/referral/post_story', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ telegram_id: '{{ user_id }}' })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('Story posted successfully!');
+                    } else {
+                        alert('Failed to post story: ' + data.message);
+                    }
+                })
+                .catch(error => alert('Error posting story: ' + error));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load referral link
+            fetch('/referral/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application\nContent-Type: application/json' },
+                body: JSON.stringify({ telegram_id: '{{ user_id }}' })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('referralLink').value = data.referral_link;
+                    }
+                });
+
+            const images = document.querySelectorAll('img[data-src]');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.classList.add('loaded');
+                        observer.unobserve(img);
+                    }
+                });
+            });
+            images.forEach(img => observer.observe(img));
+        });
+    </script>
+</body>
+</html>

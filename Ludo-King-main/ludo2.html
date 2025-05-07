@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo King</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        .body {
+            background: linear-gradient(135deg, #1a4545, #134e4e);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: white;
+        }
+        .header {
+            background: #1a2a2a;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .piece {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            font-size: 0.9rem;
+            font-weight: bold;
+            z-index: 10;
+        }
+        .piece-red { background: linear-gradient(red, #ff5e5e); }
+        .piece-green { background: linear-gradient(green, #5eff5e); }
+        .piece-yellow { background: linear-gradient(yellow, #ffff5e); color: #333; }
+        .piece-blue { background: linear-gradient(blue, #5e5eff); }
+        .piece-selected { transform: scale(1.1); box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+        .cell {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .cell-red { background: rgba(255, 0, 0, 0.3); }
+        .cell-green { background: rgba(0, 255, 0, 0.3); }
+        .cell-yellow { background: rgba(255, 255, 0, 0.3); }
+        .cell-blue { background: rgba(0, 0, 255, 0.3); }
+        .cell-safe { background: rgba(255, 255, 255, 0.4); }
+        .dice {
+            width: 5rem;
+            height: 5rem;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .dice:active { transform: scale(0.95); }
+        .home-area {
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            display: grid;
+            grid-template: repeat(2, 1fr) / repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        .home-red { background: rgba(255, 0, 0, 0.4); border: 2px solid rgba(255, 0, 0, 0.6); }
+        .home-green { background: rgba(0, 255, 0, 0.4); border: 2px solid rgba(0, 255, 0, 0.6); }
+        .home-yellow { background: rgba(255, 255, 0, 0.4); border: 2px solid rgba(255, 255, 0, 0.6); }
+        .home-blue { background: rgba(0, 0, 255, 0.4); border: 2px solid rgba(0, 0, 255, 0.6); }
+        .winner-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #22c55e;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            z-index: 100;
+        }
+        .button {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .button-green { background: #22c55e; }
+        .button-green:hover { background: #16a34a; }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            gap: 1px;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 1/1;
+            margin: 0 auto;
+            background-color: #1a2a2a;
+            border: 4px solid #1a2a2a;
+            border-radius: 0.5rem;
+        }
+        .center {
+            grid-column: 7 / 10;
+            grid-row: 7 / 10;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        .dice-animation { animation: roll 0.5s ease-out; }
+        @keyframes roll {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .piece-movement { animation: move 0.5s ease-in-out; }
+        @keyframes move {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .current-player-indicator {
+            position: absolute;
+            top: -0.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid black;
+        }
+        [draggable] {
+            -webkit-user-drag: element;
+            user-select: none;
+        }
+        .valid-move { box-shadow: 0 0 10px rgba(0, 255, 0, 0.5); }
+    </style>
+</head>
+<body class="body" x-data="ludoGame()">
+    <header class="header">
+        <button class="button button-green" @click="resetGame()" x-show="gameStarted" aria-label="Menu">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Menu
+        </button>
+        <div class="text-center">
+            <h1 class="text-xl font-bold text-teal-400">Ludo King</h1>
+        </div>
+        <div class="text-sm" x-text="currentPlayerName + '\'s turn'" aria-label="Current player"></div>
+    </header>
+
+    <main class="flex-grow p-4" aria-label="Ludo game main content">
+        <!-- Game Selection Screen -->
+        <div x-show="!gameStarted" class="max-w-md mx-auto space-y-6">
+            <h2 class="text-2xl font-bold text-center">Select Game Mode</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <button class="button button-green py-4 text-lg" @click="startGame(2)" aria-label="Play with 2 players">2 Players</button>
+                <button class="button button-green py-4 text-lg" @click="startGame(4)" aria-label="Play with 4 players">4 Players</button>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div x-show="gameStarted" class="max-w-4xl mx-auto">
+            <div class="board">
+                <!-- Top Left Corner (Green Home) -->
+                <div class="cell" x-for="i in 5" :key="'g' + i" :id="'g' + i" x-show="playerCount > 1"></div>
+                <div class="cell home-green" :col-start="2" :col-end="5" :row-start="2" :row-end="5">
+                    <template x-for="piece in greenPieces" :key="piece.id">
+                        <div 
+                            class="piece piece-green"
+                            x-text="piece.id.slice(-1)"
+                            @click="selectPiece(piece)"
+                            @dragstart="startDrag($event, piece)"
+                            draggable="true"
+                            :class="{ 'piece-selected': selectedPiece === piece }"
+                        ></div>
+                    </template>
+                </div>
+                <!-- Top Right Corner (Yellow Home) -->
+                <div class="cell" x-for="i in 5" :key="'y' + i" :id="'y' + i" x-show="playerCount > 2"></div>
+                <div class="cell home-yellow" :col-start="12" :col-end="15" :row-start="2" :row-end="5">
+                    <template x-for="piece in yellowPieces" :key="piece.id">
+                        <div 
+                            class="piece piece-yellow"
+                            x-text="piece.id.slice(-1)"
+                            @click="selectPiece(piece)"
+                            @dragstart="startDrag($event, piece)"
+                            draggable="true"
+                            :class="{ 'piece-selected': selectedPiece === piece }"
+                        ></div>
+                    </template>
+                </div>
+                <!-- Bottom Left Corner (Red Home) -->
+                <div class="cell" x-for="i in 5" :key="'r' + i" :id="'r' + i" x-show="playerCount > 0"></div>
+                <div class="cell home-red" :col-start="2" :col-end="5" :row-start="12" :row-end="15">
+                    <template x-for="piece in redPieces" :key="piece.id">
+                        <div 
+                            class="piece piece-red"
+                            x-text="piece.id.slice(-1)"
+                            @click="selectPiece(piece)"
+                            @dragstart="startDrag($event, piece)"
+                            draggable="true"
+                            :class="{ 'piece-selected': selectedPiece === piece }"
+                        ></div>
+                    </template>
+                </div>
+                <!-- Bottom Right Corner (Blue Home) -->
+                <div class="cell" x-for="i in 5" :key="'b' + i" :id="'b' + i" x-show="playerCount > 3"></div>
+                <div class="cell home-blue" :col-start="12" :col-end="15" :row-start="12" :row-end="15">
+                    <template x-for="piece in bluePieces" :key="piece.id">
+                        <div 
+                            class="piece piece-blue"
+                            x-text="piece.id.slice(-1)"
+                            @click="selectPiece(piece)"
+                            @dragstart="startDrag($event, piece)"
+                            draggable="true"
+                            :class="{ 'piece-selected': selectedPiece === piece }"
+                        ></div>
+                    </template>
+                </div>
+                <!-- Main Board with Paths -->
+                <template x-for="row in 15" :key="row">
+                    <template x-for="col in 15" :key="col">
+                        <div 
+                            class="cell"
+                            :id="'c' + (row-1) * 15 + col"
+                            :class="{
+                                'cell-red': [1, 16, 31].includes((row-1) * 15 + col),
+                                'cell-green': [55, 70, 85].includes((row-1) * 15 + col),
+                                'cell-yellow': [13, 28, 43].includes((row-1) * 15 + col),
+                                'cell-blue': [67, 82, 97].includes((row-1) * 15 + col),
+                                'cell-safe': [1, 14, 28, 42, 55, 69, 83, 97].includes((row-1) * 15 + col)
+                            }"
+                            @dragover.prevent
+                            @drop="dropPiece($event)"
+                            :class="{ 'valid-move': validMoves.includes((row-1) * 15 + col) }"
+                        >
+                            <div 
+                                x-show="getPieceAtCell((row-1) * 15 + col)"
+                                class="piece"
+                                :class="{
+                                    'piece-red': getPieceAtCell((row-1) * 15 + col).color === 'red',
+                                    'piece-green': getPieceAtCell((row-1) * 15 + col).color === 'green',
+                                    'piece-yellow': getPieceAtCell((row-1) * 15 + col).color === 'yellow',
+                                    'piece-blue': getPieceAtCell((row-1) * 15 + col).color === 'blue'
+                                }"
+                                x-text="getPieceAtCell((row-1) * 15 + col).id.slice(-1)"
+                            ></div>
+                        </div>
+                    </template>
+                </template>
+                <!-- Center -->
+                <div class="center">
+                    <template x-for="piece in piecesInCenter" :key="piece.id">
+                        <div 
+                            class="piece"
+                            :class="{
+                                'piece-red': piece.color === 'red',
+                                'piece-green': piece.color === 'green',
+                                'piece-yellow': piece.color === 'yellow',
+                                'piece-blue': piece.color === 'blue'
+                            }"
+                            x-text="piece.id.slice(-1)"
+                        ></div>
+                    </template>
+                </div>
+            </div>
+            <!-- Controls -->
+            <div class="flex flex-col items-center gap-6 mt-4">
+                <div 
+                    class="dice" 
+                    id="die"
+                    :class="{ 'dice-animation': diceRolled }"
+                    @click="rollDice()"
+                    :style="'background-image: url(\'data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><rect width=\\'100\\' height=\\'100\\' rx=\\'10\\' fill=\\'white\\' stroke=\\'black\\' stroke-width=\\'3\\'/>' + 
+                    (diceValue === 1 ? '<circle cx=\\'50\\' cy=\\'50\\' r=\\'10\\' fill=\\'black\\'/>' : '') +
+                    (diceValue === 2 ? '<circle cx=\\'25\\' cy=\\'25\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'75\\' r=\\'10\\' fill=\\'black\\'/>' : '') +
+                    (diceValue === 3 ? '<circle cx=\\'25\\' cy=\\'25\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'50\\' cy=\\'50\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'75\\' r=\\'10\\' fill=\\'black\\'/>' : '') +
+                    (diceValue === 4 ? '<circle cx=\\'25\\' cy=\\'25\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'25\\' cy=\\'75\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'25\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'75\\' r=\\'10\\' fill=\\'black\\'/>' : '') +
+                    (diceValue === 5 ? '<circle cx=\\'25\\' cy=\\'25\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'25\\' cy=\\'75\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'50\\' cy=\\'50\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'25\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'75\\' r=\\'10\\' fill=\\'black\\'/>' : '') +
+                    (diceValue === 6 ? '<circle cx=\\'25\\' cy=\\'25\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'25\\' cy=\\'50\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'25\\' cy=\\'75\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'25\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'50\\' r=\\'10\\' fill=\\'black\\'/><circle cx=\\'75\\' cy=\\'75\\' r=\\'10\\' fill=\\'black\\'/>' : '') + '\')'"
+                    aria-label="Roll the dice"
+                ></div>
+                <div class="text-lg font-bold" x-text="'Rolled: ' + diceValue" x-show="diceValue > 0"></div>
+            </div>
+        </div>
+
+        <!-- Winner Popup -->
+        <div 
+            x-show="showWinnerPopup"
+            class="winner-popup"
+            role="alert"
+            aria-label="Winner notification"
+        >
+            <p class="text-2xl font-bold mb-4" x-text="winnerName + ' Wins!'"></p>
+            <p class="text-lg" x-text="'Score: ' + winnerPieces + ' pieces in center'"></p>
+            <button 
+                class="button button-green mt-6"
+                @click="resetGame()"
+                aria-label="Play again"
+            >
+                Play Again
+            </button>
+        </div>
+    </main>
+
+    <audio id="diceSound" src="https://www.soundjay.com/buttons/button-09.mp3"></audio>
+    <audio id="captureSound" src="https://www.soundjay.com/misc/sounds/boing-01.mp3"></audio>
+
+    <script>
+        function ludoGame() {
+            return {
+                gameStarted: false,
+                playerCount: 2,
+                currentPlayer: 0,
+                diceValue: 0,
+                diceRolled: false,
+                pieces: [],
+                showWinnerPopup: false,
+                winnerName: '',
+                winnerPieces: 0,
+                canRoll: true,
+                canMove: false,
+                selectedPiece: null,
+                validMoves: [],
+                dragPiece: null,
+
+                get currentPlayerName() {
+                    const colors = ['Red', 'Green', 'Yellow', 'Blue'];
+                    return colors[this.currentPlayer];
+                },
+
+                get currentPlayerColor() {
+                    const colors = ['red', 'green', 'yellow', 'blue'];
+                    return colors[this.currentPlayer];
+                },
+
+                get redPieces() {
+                    return this.pieces.filter(p => p.color === 'red' && p.position === 'home');
+                },
+
+                get greenPieces() {
+                    return this.pieces.filter(p => p.color === 'green' && p.position === 'home');
+                },
+
+                get yellowPieces() {
+                    return this.pieces.filter(p => p.color === 'yellow' && p.position === 'home');
+                },
+
+                get bluePieces() {
+                    return this.pieces.filter(p => p.color === 'blue' && p.position === 'home');
+                },
+
+                get piecesInCenter() {
+                    return this.pieces.filter(p => p.position === 'center');
+                },
+
+                init() {
+                    this.resetGame();
+                },
+
+                startGame(playerCount) {
+                    this.playerCount = playerCount;
+                    this.gameStarted = true;
+                    this.currentPlayer = 0;
+                    this.pieces = [];
+                    const colors = ['red', 'green', 'yellow', 'blue'].slice(0, playerCount);
+                    for (let i = 0; i < playerCount; i++) {
+                        for (let j = 1; j <= 4; j++) {
+                            this.pieces.push({
+                                id: colors[i] + j,
+                                color: colors[i],
+                                position: 'home',
+                                pathPosition: 0,
+                                isInFinalPath: false,
+                                element: null
+                            });
+                        }
+                    }
+                    this.updatePieceElements();
+                },
+
+                updatePieceElements() {
+                    this.pieces.forEach(piece => {
+                        piece.element = document.querySelector(`[data-piece="${piece.id}"]`) || null;
+                    });
+                },
+
+                rollDice() {
+                    if (!this.canRoll) return;
+                    document.getElementById('diceSound').play();
+                    this.diceRolled = true;
+                    this.diceValue = Math.floor(Math.random() * 6) + 1;
+                    this.canRoll = false;
+                    this.calculateValidMoves();
+                },
+
+                selectPiece(piece) {
+                    if (!this.canMove || piece.color !== this.currentPlayerColor || !this.diceValue) return;
+                    this.selectedPiece = piece;
+                    this.movePiece();
+                },
+
+                startDrag(event, piece) {
+                    if (!this.canMove || piece.color !== this.currentPlayerColor || !this.diceValue) return;
+                    event.dataTransfer.setData('text/plain', piece.id);
+                    this.dragPiece = piece;
+                    this.calculateValidMoves();
+                },
+
+                dropPiece(event) {
+                    event.preventDefault();
+                    const pieceId = event.dataTransfer.getData('text/plain');
+                    const piece = this.pieces.find(p => p.id === pieceId);
+                    if (piece && this.dragPiece === piece) {
+                        const cellId = event.target.id || event.target.parentElement.id;
+                        const newPosition = parseInt(cellId.replace('c', ''));
+                        if (this.validMoves.includes(newPosition)) {
+                            this.movePieceToPosition(piece, newPosition);
+                        }
+                    }
+                    this.dragPiece = null;
+                    this.validMoves = [];
+                },
+
+                calculateValidMoves() {
+                    this.validMoves = [];
+                    if (!this.selectedPiece && !this.dragPiece) return;
+                    const piece = this.selectedPiece || this.dragPiece;
+                    const path = this.getPath(piece.color);
+                    const currentIndex = piece.pathPosition;
+                    if (piece.position === 'home' && this.diceValue === 6) {
+                        this.validMoves.push(path[0]);
+                    } else if (piece.position === 'path') {
+                        const newIndex = currentIndex + this.diceValue;
+                        if (newIndex < path.length) {
+                            this.validMoves.push(path[newIndex]);
+                        }
+                    }
+                },
+
+                movePiece() {
+                    if (!this.selectedPiece || !this.canMove) return;
+                    const path = this.getPath(this.selectedPiece.color);
+                    const currentIndex = this.selectedPiece.pathPosition;
+                    const newIndex = currentIndex + this.diceValue;
+                    if (newIndex < path.length) {
+                        this.movePieceToPosition(this.selectedPiece, path[newIndex]);
+                    }
+                    this.selectedPiece = null;
+                    this.endTurn();
+                },
+
+                movePieceToPosition(piece, newPosition) {
+                    const path = this.getPath(piece.color);
+                    const newIndex = path.indexOf(newPosition);
+                    piece.pathPosition = newPosition;
+                    if (newIndex >= 56) {
+                        piece.isInFinalPath = true;
+                        if (newIndex === path.length - 1) {
+                            piece.position = 'center';
+                            this.checkWin();
+                        }
+                    } else {
+                        piece.position = 'path';
+                    }
+                    const cell = document.getElementById('c' + newPosition);
+                    if (cell && piece.element) cell.appendChild(piece.element);
+                    this.checkCapture(piece);
+                },
+
+                getPath(color) {
+                    const paths = {
+                        red: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60],
+                        green: [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 71, 72, 73, 74, 75, 76, 77, 78],
+                        yellow: [27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 81, 82, 83, 84, 85, 86, 87, 88],
+                        blue: [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 91, 92, 93, 94, 95, 96, 97, 98]
+                    };
+                    return paths[color];
+                },
+
+                checkCapture(piece) {
+                    const otherPieces = this.pieces.filter(p => 
+                        p.id !== piece.id && 
+                        p.position === 'path' && 
+                        p.pathPosition === piece.pathPosition &&
+                        !this.isSafePosition(piece.pathPosition)
+                    );
+                    if (otherPieces.length > 0) {
+                        document.getElementById('captureSound').play();
+                        otherPieces.forEach(p => {
+                            p.position = 'home';
+                            p.pathPosition = 0;
+                            p.isInFinalPath = false;
+                            const homeCell = document.querySelector(`[data-color="${p.color}"]`);
+                            if (homeCell && p.element) homeCell.appendChild(p.element);
+                        });
+                        this.canRoll = true;
+                    }
+                },
+
+                isSafePosition(position) {
+                    return [1, 14, 27, 40, 52, 65, 78, 91].includes(position);
+                },
+
+                checkWin() {
+                    const currentColor = this.currentPlayerColor;
+                    const playerPieces = this.pieces.filter(p => p.color === currentColor);
+                    if (playerPieces.every(p => p.position === 'center')) {
+                        this.winnerName = this.currentPlayerName;
+                        this.winnerPieces = playerPieces.length;
+                        this.showWinnerPopup = true;
+                    }
+                },
+
+                endTurn() {
+                    if (this.diceValue !== 6 && !this.canRoll) {
+                        this.currentPlayer = (this.currentPlayer + 1) % this.playerCount;
+                    }
+                    this.canRoll = true;
+                    this.canMove = false;
+                    this.diceRolled = false;
+                    this.diceValue = 0;
+                    this.validMoves = [];
+                },
+
+                resetGame() {
+                    this.gameStarted = false;
+                    this.playerCount = 2;
+                    this.currentPlayer = 0;
+                    this.diceValue = 0;
+                    this.diceRolled = false;
+                    this.pieces = [];
+                    this.showWinnerPopup = false;
+                    this.winnerName = '';
+                    this.winnerPieces = 0;
+                    this.canRoll = true;
+                    this.canMove = false;
+                    this.selectedPiece = null;
+                    this.dragPiece = null;
+                },
+
+                getPieceAtCell(position) {
+                    return this.pieces.find(p => p.position === 'path' && p.pathPosition === position);
+                }
+            };
+        }
+    </script>
+</body>
+</html>

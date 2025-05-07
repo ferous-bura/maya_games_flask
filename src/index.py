@@ -7,7 +7,7 @@ from wtforms import StringField, PasswordField, SelectField
 from wtforms.validators import DataRequired
 import logging
 
-import app
+import app as app
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)

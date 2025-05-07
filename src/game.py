@@ -4,9 +4,10 @@ from flask import jsonify, render_template, request
 from flask_login import current_user, login_required
 import logging
 
-import app
+import app as app
 
-@app.app.route('/playzzz/<game_type>', methods=['GET', 'POST'])
+
+@app.app.route('/play3/<game_type>', methods=['GET', 'POST'])
 @login_required
 def play_game(game_type):
     if game_type not in ['keno', 'bingo', 'spin', 'ludo']:

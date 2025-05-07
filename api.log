@@ -1,0 +1,19 @@
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 324-305-620
+INFO:werkzeug: * Detected change in '/home/bura/Documents/Github/receipt/app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 324-305-620
+INFO:werkzeug: * Detected change in '/home/bura/Documents/Github/receipt/app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 324-305-620
+INFO:werkzeug:127.0.0.1 - - [21/Apr/2025 02:01:52] "[33mPOST /check_transaction HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [21/Apr/2025 02:03:53] "[33mPOST /payment HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [21/Apr/2025 02:03:56] "[33mPOST /staff/verify HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [21/Apr/2025 02:03:57] "[33mPOST /payment HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [21/Apr/2025 02:03:58] "[33mPOST /payment HTTP/1.1[0m" 404 -

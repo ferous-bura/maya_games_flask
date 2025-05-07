@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactions</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Transactions</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Transaction Number</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Source</th>
+                <th>Payer Name</th>
+                <th>Payment Date</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody id="transaction-list">
+            <!-- Transactions will be dynamically loaded here -->
+        </tbody>
+    </table>
+    <button id="load-more">Load More</button>
+    <br>
+    <a href="/" class="back-button">Back to Home</a>
+
+    <script>
+        let offset = 0;
+        const limit = 20;
+
+        async function loadTransactions() {
+            const response = await fetch(`/payment/trx?token=bde780421e7508f1ae3dc6043588d6f5&offset=${offset}&limit=${limit}`);
+            const data = await response.json();
+            showData(data);
+        }
+
+        document.getElementById('load-more').addEventListener('click', loadTransactions);
+
+        function showData(data) {
+            // const transactionList = document.getElementById('transaction-list');
+            // data.forEach(transaction => {
+            //     const row = document.createElement('tr');
+            //     row.innerHTML = `
+            //         <td>${transaction.transaction_number}</td>
+            //         <td>${transaction.amount}</td>
+            //         <td>${transaction.method}</td>
+            //         <td>${transaction.source}</td>
+            //         <td>${transaction.payer_name}</td>
+            //         <td>${transaction.payment_date}</td>
+            //         <td>${transaction.timestamp}</td>
+            //     `;
+            //     transactionList.appendChild(row);
+            // });
+            // offset += limit;
+
+            if (data.status === 'success') {
+                const tbody = document.getElementById('transaction-list');
+                data.transactions.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${transaction.transaction_number}</td>
+                        <td>${transaction.amount}</td>
+                        <td>${transaction.method}</td>
+                        <td>${transaction.source}</td>
+                        <td>${transaction.payer_name}</td>
+                        <td>${transaction.payment_date}</td>
+                        <td>${transaction.timestamp}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                offset += limit;
+            } else {
+                alert(data.message);
+            }
+        }
+
+        // Initial load
+        loadTransactions();
+    </script>
+</body>
+</html>

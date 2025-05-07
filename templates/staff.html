@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Staff Portal</title>
+</head>
+<body>
+    <h2>Staff Portal</h2>
+    {% if current_user.is_authenticated %}
+        <p>Hello, {{ current_user.username }}! <a href="/dashboard">Go to Dashboard</a></p>
+        <a href="/logout">Logout</a>
+    {% else %}
+        <p>Please <a href="/login">login</a> or <a href="/register">register</a> as staff.</p>
+    {% endif %}
+</body>
+</html>

@@ -5,1051 +5,116 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Keno</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/static/keno.css">
     <style>
-        :root {
-            --numberSize: 2rem;
-        }
-
-        .body {
-            background: linear-gradient(135deg, #1a4545, #134e4e);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            color: white;
-            transition: all 0.5s;
-        }
-
-        .body-game-started {
-            background: linear-gradient(135deg, #2a5a5a, #1e6d6d);
-        }
-
-        .header {
-            background: #1a2a2a;
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .number-circle {
-            position: relative;
-            width: var(--numberSize);
-            height: var(--numberSize);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: calc(var(--numberSize) * 0.5);
-            cursor: pointer;
-            transition: all 0.3s;
-            border: 2px solid #4a6a6a;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .body .number-circle {
-            background: linear-gradient(135deg, #1a4545, #134e4e);
-        }
-
-        .body-game-started .number-circle {
-            background: linear-gradient(135deg, #2a5a5a, #1e6d6d);
-        }
-
-        .number-circle-selected {
-            background: #1e90ff !important;
-            border-color: #60a5fa;
-        }
-
-        .number-circle-match-indicator::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 0.75rem;
-            height: 0.75rem;
-            background: #22c55e;
-            border-radius: 50%;
-            border: 2px solid #4ade80;
-        }
-
-        .number-circle-drawn-indicator::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 0.75rem;
-            height: 0.75rem;
-            background: #ef4444;
-            border-radius: 50%;
-            border: 2px solid #f87171;
-        }
-
-        .result-circle {
-            position: relative;
-            width: var(--numberSize);
-            height: var(--numberSize);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: calc(var(--numberSize) * 0.5);
-            border: 2px solid #4a6a6a;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .body .result-circle {
-            background: linear-gradient(135deg, #1a4545, #134e4e);
-        }
-
-        .body-game-started .result-circle {
-            background: linear-gradient(135deg, #2a5a5a, #1e6d6d);
-        }
-
-        .result-circle-match::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 0.75rem;
-            height: 0.75rem;
-            background: #22c55e;
-            border-radius: 50%;
-            border: 2px solid #4ade80;
-        }
-
-        .result-container {
-            min-height: 3rem;
-            display: flex;
-            align-items: center;
-        }
-
         .animated-number-container {
-            width: 3rem;
-            height: 3rem;
+            margin-bottom: 0.5rem;
+            transition: opacity 0.3s ease;
             display: flex;
-            align-items: center;
             justify-content: center;
         }
-
-        .animated-number {
-            width: 3rem;
-            height: 3rem;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            background: #2a3a3a;
-            border: 3px solid #4a6a6a;
-            color: #22c55e;
+        .animated-number-container.hidden {
+            opacity: 0;
+            height: 0;
+            overflow: hidden;
         }
-
-        .animated-number span {
-            display: inline-block;
-            animation: bounce 0.5s ease-in-out;
-        }
-
-        .animated-number-match {
-            color: #22c55e;
-        }
-
-        .animated-number-drawn {
-            color: #ef4444;
-        }
-
-        .ticket {
-            background: #2a3a3a;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .ticket-winner {
-            border: 2px solid #22c55e;
-            background: #1a3a2a;
-        }
-
-        .ticket-number {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 1.5rem;
-            height: 1.5rem;
-            border: 1px solid #60a5fa;
-            border-radius: 0.25rem;
-            margin-right: 0.25rem;
-            font-size: 0.875rem;
-            background: #1e90ff;
-        }
-
-        .ticket-number-match::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 0.5rem;
-            height: 0.5rem;
-            background: #22c55e;
-            border-radius: 50%;
-            border: 1px solid #4ade80;
-        }
-
-        .ticket-win {
-            font-size: 1.25rem;
-            font-weight: bold;
-            color: #ffd700;
-            text-shadow: 0 0 4px rgba(255, 215, 0, 0.5);
-        }
-
-        .ticket-count {
-            font-size: 0.875rem;
-            color: #60a5fa;
-        }
-
-        .button {
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            font-weight: bold;
-            transition: all 0.3s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .button-green {
-            background: #22c55e;
-        }
-
-        .button-green:hover {
-            background: #16a34a;
-        }
-
-        .button-red {
-            background: #ef4444;
-        }
-
-        .button-red:hover {
-            background: #dc2626;
-        }
-
-        .button-disabled {
-            background: #4b5563;
-            cursor: not-allowed;
-        }
-
-        .winner-popup {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #22c55e;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            text-align: center;
-            animation: balloon 2s ease-in-out;
-        }
-
-        .dropdown {
-            background: #2a3a3a;
-            color: white;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            border: 1px solid #4a6a6a;
-        }
-
         .timer {
-            border: 3px solid #4a6a6a;
-            border-radius: 1rem;
-            padding: 0.5rem 1rem;
-            background: #2a3a3a;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-            font-family: monospace;
+            transition: color 0.3s ease, font-size 0.3s ease;
         }
-
-        .multiplier-tooltip {
-            position: absolute;
-            background: #1a2a2a;
-            color: white;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            z-index: 10;
-            font-size: 0.875rem;
-        }
-
-        .multiplier-pulse {
-            animation: pulse 0.5s ease-in-out;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        @keyframes bounce {
-            0% { transform: scale(0); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-
-        @keyframes balloon {
-            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-            20% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-            80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+        #drawn-numbers-grid {
+            display: grid;
+            grid-template-columns: repeat(10, minmax(0, 1fr));
+            gap: 0.25rem;
+            margin-top: 1rem;
         }
     </style>
 </head>
-<body class="body" :class="{'body-game-started': (gameStarted ?? false)}" x-data="kenoGame()" x-init="$nextTick(() => { console.log('Alpine.js initialized', gameStarted, selectionTimeLeft); })">
-    <header class="header">
+<body class="body">
+    <header id="header" class="header">
         <div class="flex items-center space-x-2">
-            <a href="/home" class="button button-green text-sm flex items-center space-x-1" x-show="!(gameStarted ?? false)" aria-label="Go back to home">
+            <a id="back-link" class="flex items-center space-x-1" aria-label="Go back to home">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
                 <span>Back</span>
             </a>
-            <span class="timer" x-text="timer" aria-label="Time remaining"></span>
         </div>
         <div class="text-center">
-            <h1 class="text-xl font-bold text-teal-400">Keno</h1>
+            <h1 class="text-lg font-bold text-teal-400">Keno</h1>
         </div>
-        <div class="text-sm">
-            <span aria-label="Number of tickets">Tickets: <span x-text="totalTickets ?? 0"></span></span>
+        <div class="text-sm flex items-center space-x-2">
+            <span id="total-amount" aria-label="Total amount"></span>
+            <span id="timer" class="timer" aria-label="Time remaining"></span>
         </div>
     </header>
-
-    <main class="flex-grow p-4" aria-label="Keno game main content">
+    <main class="flex-grow p-2" style="margin-top: var(--main-margin-top);" aria-label="Keno game main content">
         <div class="max-w-4xl mx-auto">
-            <div class="flex justify-between items-center mb-4">
-                <div class="flex items-center space-x-2">
-                    <div x-show="!(gameStarted ?? false) && !demo">
-                        <p class="text-sm" aria-label="Total amount">Total Amount: <span x-text="(totalAmount ?? 0).toFixed(2)"></span> birr</p>
-                    </div>
-                    <div x-show="!(gameStarted ?? false)" class="flex items-center space-x-2">
-                        <p class="text-sm" x-show="(selectedNumbers ?? []).length === 0 && (tickets ?? []).length === 0">Choose 10 numbers from 1 to 80</p>
-                        <select class="dropdown" x-model="oddType" @change="updatePotentialWins()" aria-label="Select odds type">
-                            <option value="kiron">Kiron</option>
-                            <option value="mohio2">Mohio2</option>
-                            <option value="type1">Type1</option>
-                            <option value="type2">Type2</option>
-                            <option value="mohio">Mohio</option>
-                            <option value="promo">Promo</option>
-                            <option value="promo2">Promo2</option>
-                            <option value="promo3">Promo3</option>
-                            <option value="promo4">Promo4</option>
-                            <option value="promo5">Promo5</option>
-                            <option value="promo6">Promo6</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <div class="result-container" aria-label="Drawn numbers result">
-                    <div class="animated-number-container">
-                        <div 
-                            class="animated-number"
-                            :class="{
-                                'animated-number-match': (canAnimate ?? false) && (selectedNumbers ?? []).includes(currentDrawnNumber || lastDrawnNumber),
-                                'animated-number-drawn': (canAnimate ?? false) && !(selectedNumbers ?? []).includes(currentDrawnNumber || lastDrawnNumber)
-                            }"
-                            x-show="currentDrawnNumber !== null || ((gameEnded ?? false) && lastDrawnNumber !== null)"
-                            :aria-label="currentDrawnNumber !== null ? 'Current drawn number: ' + currentDrawnNumber : 'Last drawn number: ' + lastDrawnNumber"
-                        >
-                            <span x-text="currentDrawnNumber !== null ? currentDrawnNumber : lastDrawnNumber"></span>
+            <div id="result-section" class="mb-4">
+                <div id="result-container" class="result-container" aria-label="Drawn numbers result">
+                    <div id="animated-number-container" class="animated-number-container hidden">
+                        <div id="animated-number" class="animated-number" aria-label="Current drawn number">
+                            <span id="animated-number-text"></span>
                         </div>
                     </div>
-
                     <div class="flex-1 text-center">
-                        <div x-show="gameStarted ?? false" class="grid grid-cols-10 gap-3" aria-label="List of drawn numbers">
-                            <template x-for="num in (drawnNumbers ?? [])" :key="num">
-                                <div 
-                                    class="result-circle"
-                                    :class="{
-                                        'result-circle-match': (selectedNumbers ?? []).includes(num),
-                                        'text-green-400': (selectedNumbers ?? []).includes(num),
-                                        'text-red-400': !(selectedNumbers ?? []).includes(num)
-                                    }"
-                                    :aria-label="'Drawn number ' + num + ((selectedNumbers ?? []).includes(num) ? ' (matched)' : ' (not matched)')"
-                                >
-                                    <span x-text="num"></span>
-                                </div>
-                            </template>
-                        </div>
+                        <div id="drawn-numbers-grid" aria-label="List of drawn numbers"></div>
                     </div>
                 </div>
             </div>
-
-            <div 
-                class="grid grid-cols-10 gap-3 mb-6" 
-                :class="{'pointer-events-none': (gameStarted ?? false) || ((selectionTimeLeft ?? 0) <= 3 && !(gameStarted ?? false))}"
-                role="grid"
-                aria-label="Number selection grid"
-                x-on:load="console.log('Grid loaded', gameStarted, selectionTimeLeft)"
-            >
-                <template x-for="num in 80" :key="num">
-                    <div 
-                        class="number-circle"
-                        :class="{
-                            'hover:bg-blue-600': !(gameStarted ?? false) && !(selectedNumbers ?? []).includes(num),
-                            'number-circle-selected': (selectedNumbers ?? []).includes(num) && !(drawnNumbers ?? []).includes(num),
-                            'number-circle-match-indicator': (drawnNumbers ?? []).includes(num) && (selectedNumbers ?? []).includes(num),
-                            'number-circle-drawn-indicator': (drawnNumbers ?? []).includes(num) && !(selectedNumbers ?? []).includes(num),
-                            'text-green-400': (drawnNumbers ?? []).includes(num) && (selectedNumbers ?? []).includes(num),
-                            'text-red-400': (drawnNumbers ?? []).includes(num) && !(selectedNumbers ?? []).includes(num)
-                        }"
-                        @click="(!(gameStarted ?? false) && (selectionTimeLeft ?? 0) > 3) && selectNumber(num) && console.log('Number clicked:', num, gameStarted, selectionTimeLeft)"
-                        :disabled="(gameStarted ?? false) || ((selectedNumbers ?? []).length >= 10 && !(selectedNumbers ?? []).includes(num)) || (selectionTimeLeft ?? 0) <= 3"
-                        :aria-label="'Number ' + num + ((selectedNumbers ?? []).includes(num) ? ' (selected)' : '')"
-                        :aria-pressed="(selectedNumbers ?? []).includes(num)"
-                        role="button"
-                        tabindex="0"
-                        @keydown.enter="(!(gameStarted ?? false) && (selectionTimeLeft ?? 0) > 3) && selectNumber(num)"
-                        @keydown.space="(!(gameStarted ?? false) && (selectionTimeLeft ?? 0) > 3) && selectNumber(num)"
-                    >
-                        <span x-text="num"></span>
-                    </div>
-                </template>
-            </div>
-
-            <div x-show="!(gameStarted ?? false)">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center space-x-2" aria-label="Adjust bet amount">
-                        <button 
-                            class="button bg-gray-700 text-sm"
-                            @click="betAmount = Math.max(MIN_BET_AMOUNT, betAmount - 1)"
-                            aria-label="Decrease bet amount"
-                        >
-                            -
-                        </button>
-                        <span class="text-sm" x-text="betAmount ?? 0" aria-label="Current bet amount"></span>
-                        <button 
-                            class="button bg-gray-700 text-sm"
-                            @click="betAmount++"
-                            aria-label="Increase bet amount"
-                        >
-                            +
-                        </button>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <button 
-                            class="button button-green text-sm"
-                            @click="quickPick()"
-                            aria-label="Quick pick 10 numbers"
-                        >
-                            Quick Pick
-                        </button>
-                        <button 
-                            class="button button-green text-sm"
-                            @click="addTicket()"
-                            :disabled="(selectedNumbers ?? []).length === 0 || (selectionTimeLeft ?? 0) <= 3"
-                            aria-label="Add ticket with selected numbers"
-                        >
-                            + Add Ticket
-                        </button>
-                    </div>
+            <div id="number-grid" class="grid grid-cols-10 mb-4" style="gap: var(--grid-gap);" role="grid" aria-label="Number selection grid"></div>
+            <div id="selection-controls" class="flex items-center justify-between mb-2">
+                <div class="flex items-center space-x-2" aria-label="Adjust bet amount">
+                    <button id="bet-decrement" class="button button-decrement" aria-label="Decrease bet amount">-</button>
+                    <span id="bet-amount" class="text-sm" aria-label="Current bet amount"></span>
+                    <button id="bet-increment" class="button button-increment" aria-label="Increase bet amount">+</button>
+                    <select id="odd-type" class="dropdown" aria-label="Select odds type">
+                        <option value="kiron">Kiron</option>
+                        <option value="mohio2">Mohio2</option>
+                        <option value="type1">Type1</option>
+                        <option value="type2">Type2</option>
+                        <option value="mohio">Mohio</option>
+                        <option value="promo">Promo</option>
+                        <option value="promo2">Promo2</option>
+                        <option value="promo3">Promo3</option>
+                        <option value="promo4">Promo4</option>
+                        <option value="promo5">Promo5</option>
+                        <option value="promo6">Promo6</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="quick-pick" class="button button-green" aria-label="Quick pick numbers">Quick Pick</button>
+                    <button id="add-ticket" class="button button-green" aria-label="Add ticket with selected numbers">+ Add Ticket</button>
+                    <button id="cancel-tickets" class="button button-red" aria-label="Cancel all tickets">Cancel All</button>
                 </div>
             </div>
-
-            <div class="space-y-4 mb-4" aria-label="List of tickets">
-                <template x-for="(ticket, index) in (tickets ?? [])" :key="index">
-                    <div 
-                        class="ticket flex justify-between items-center"
-                        :class="{'ticket-winner': ticket.isWinner && (gameEnded ?? false)}"
-                        :aria-label="'Ticket ' + (index + 1)"
-                    >
-                        <div class="flex items-center space-x-2">
-                            <button 
-                                class="text-red-400 hover:text-red-600"
-                                @click="removeTicket(index)"
-                                x-show="!(gameStarted ?? false) && !(hasTickets ?? false)"
-                                aria-label="Remove ticket"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                            <div>
-                                <p class="text-sm">Ticket <span x-text="index + 1"></span></p>
-                                <p class="text-sm">
-                                    <template x-for="num in ticket.numbers" :key="num">
-                                        <span 
-                                            class="ticket-number"
-                                            :class="{'ticket-number-match': (drawnNumbers ?? []).includes(num)}"
-                                            x-text="num"
-                                            :aria-label="'Ticket number ' + num + ((drawnNumbers ?? []).includes(num) ? ' (matched)' : '')"
-                                        ></span>
-                                    </template>
-                                </p>
-                                <p class="ticket-count">
-                                    Total Selected: <span x-text="ticket.numbers.length"></span>
-                                </p>
-                                <p class="text-green-400 text-sm" x-show="ticket.isWinner && (gameEnded ?? false)">Winner!</p>
-                            </div>
-                        </div>
-                        <div class="text-right relative">
-                            <div class="flex items-center space-x-1">
-                                <p class="text-sm" x-text="ticket.betAmount + ' x ' + ticket.multiplier" :class="{'multiplier-pulse': ticket.updated}"></p>
-                                <button 
-                                    @click="showTooltip(index)" 
-                                    class="text-blue-400 hover:text-blue-600 text-xs"
-                                    aria-label="Show multiplier breakdown"
-                                >
-                                    ⓘ
-                                </button>
-                            </div>
-                            <p class="ticket-win" x-text="((gameEnded ?? false) && ticket.isWinner) ? ticket.actualWin + ' birr' : ticket.potentialWin + ' birr'"></p>
-                            <div 
-                                class="multiplier-tooltip" 
-                                x-show="ticket.showTooltip" 
-                                x-transition
-                                style="top: -100%; right: 0;"
-                            >
-                                <p class="font-bold">Multiplier Breakdown:</p>
-                                <template x-for="[matches, odds] in ticket.oddsBreakdown" :key="matches">
-                                    <p x-text="'Match ' + matches + ': ' + odds.toFixed(1) + 'x'"></p>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+            <div id="tickets-section" class="space-y-2 mb-4 flex-grow overflow-y-auto" aria-label="List of tickets">
+                <div class="flex justify-between items-center">
+                    <span id="total-tickets" aria-label="Number of tickets">Tickets: 0</span>
+                    <button id="history-button" class="button button-green text-sm" aria-label="View ticket history">History</button>
+                </div>
+                <div id="tickets-list"></div>
             </div>
-
-            <div x-show="!(gameStarted ?? false)">
-                <button 
-                    x-show="!(hasTickets ?? false)"
-                    class="button button-green w-full py-3 text-lg"
-                    @click="registerTickets()"
-                    :disabled="(tickets ?? []).length === 0 || (selectionTimeLeft ?? 0) <= 3"
-                    aria-label="Place bet with current tickets"
-                >
-                    BET
-                </button>
-                <button 
-                    x-show="hasTickets ?? false"
-                    class="button button-red w-full py-3 text-lg"
-                    @click="cancelTickets()"
-                    aria-label="Cancel tickets and reset"
-                >
-                    Cancel
-                </button>
-            </div>
-
-            <div x-show="gameStarted ?? false">
-                <button 
-                    class="button w-full py-3 text-lg flex justify-between items-center px-4"
-                    :class="{
-                        'button-green': (gameEnded ?? false) && (winAmount ?? 0) > 0,
-                        'button-disabled': !(gameEnded ?? false) || (winAmount ?? 0) <= 0
-                    }"
-                    @click="handleWin()"
-                    :disabled="!(gameEnded ?? false) || (winAmount ?? 0) <= 0"
-                    :aria-label="'Claim winnings: ' + (winAmount ?? 0).toFixed(2) + ' birr'"
-                    x-show="gameEnded ?? false"
-                >
+            <div id="win-section">
+                <button id="claim-win" class="button w-full py-3 text-lg flex justify-between items-center px-4" aria-label="Claim winnings">
                     <span>Won</span>
-                    <span x-text="(winAmount ?? 0).toFixed(2) + ' birr'"></span>
+                    <span id="win-amount"></span>
                 </button>
             </div>
-
-            <div 
-                x-show="showWinnerPopup ?? false"
-                class="winner-popup"
-                role="alert"
-                aria-label="Winner notification"
-            >
+            <div id="winner-popup" class="winner-popup" role="alert" aria-label="Winner notification">
                 <p class="text-lg font-bold">Congratulations! You Won!</p>
-                <p class="text-sm" x-text="(winAmount ?? 0).toFixed(2) + ' birr'"></p>
+                <p id="winner-amount" class="text-sm"></p>
+            </div>
+            <div id="history-modal" class="modal">
+                <div class="modal-content">
+                    <h2 class="text-lg font-bold mb-2">Ticket History</h2>
+                    <button id="close-history" class="button button-red text-sm mb-2" aria-label="Close modal">Close</button>
+                    <div id="history-list" class="space-y-4" aria-label="Ticket history"></div>
+                </div>
             </div>
         </div>
     </main>
-
-    <script>
-        function kenoGame() {
-            return {
-                MIN_BET_AMOUNT: 5,
-                TOTAL_DRAW_NUMBERS: 20,
-                DRAW_DURATION: 30000,
-                SELECTION_DURATION: 30000,
-                POPUP_DURATION: 2000,
-                END_GAME_DELAY: 5000,
-                oddPrice: {
-                    'kiron': {
-                        1: [[1, 4]],
-                        2: [[2, 15]],
-                        3: [[2, 3], [3, 35]],
-                        4: [[2, 1], [3, 8], [4, 100]],
-                        5: [[2, 1], [3, 3], [4, 15], [5, 100]],
-                        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-                        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-                        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    },
-                    'mohio2': {
-                        1: [[1, 4]],
-                        2: [[2, 15]],
-                        3: [[2, 3], [3, 50]],
-                        4: [[2, 1], [3, 11], [4, 100]],
-                        5: [[2, 1], [3, 4], [4, 20], [5, 300]],
-                        6: [[3, 2], [4, 15], [5, 80], [6, 500]],
-                        7: [[3, 2], [4, 5], [5, 40], [6, 100], [7, 1000]],
-                        8: [[4, 5], [5, 15], [6, 100], [7, 200], [8, 2000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    },
-                    'type1': {
-                        1: [[1, 4]],
-                        2: [[2, 20]],
-                        3: [[2, 3], [3, 35]],
-                        4: [[2, 1], [3, 8], [4, 100]],
-                        5: [[2, 1], [3, 3], [4, 15], [5, 300]],
-                        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-                        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-                        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    },
-                    'type2': {
-                        1: [[1, 4]],
-                        2: [[2, 25]],
-                        3: [[2, 5], [3, 45]],
-                        4: [[2, 1], [3, 20], [4, 300]],
-                        5: [[2, 1], [3, 3], [4, 15], [5, 900]],
-                        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-                        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-                        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    },
-                    'mohio': {
-                        1: [[1, 4]],
-                        2: [[1, 1], [2, 15]],
-                        3: [[1, 1], [2, 3], [3, 50]],
-                        4: [[2, 1], [3, 11], [4, 100]],
-                        5: [[2, 1], [3, 4], [4, 20], [5, 300]],
-                        6: [[3, 2], [4, 15], [5, 80], [6, 500]],
-                        7: [[3, 2], [4, 5], [5, 40], [6, 100], [7, 1000]],
-                        8: [[4, 5], [5, 15], [6, 100], [7, 200], [8, 2000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    },
-                    'promo': {
-                        1: [[1, 4]],
-                        2: [[1, 1], [2, 25]],
-                        3: [[1, 1], [2, 8], [3, 50]],
-                        4: [[2, 1], [3, 20], [4, 300]],
-                        5: [[2, 1], [3, 3], [4, 15], [5, 900]],
-                        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-                        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-                        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    },
-                    'promo2': {
-                        1: [[1, 4]],
-                        2: [[2, 20]],
-                        3: [[2, 3], [3, 35]],
-                        4: [[3, 8], [4, 100]],
-                        5: [[4, 15], [5, 300]],
-                        6: [[4, 1], [5, 10], [6, 70], [7, 1800]],
-                        7: [[4, 0], [5, 2], [6, 12], [7, 120], [8, 2150]],
-                        8: [[5, 0], [6, 4], [7, 40], [8, 600], [9, 3000]],
-                        9: [[6, 0], [7, 3], [8, 18], [9, 120], [10, 4200]],
-                        10: [[7, 0], [8, 2], [9, 12], [10, 40], [11, 400], [12, 2500], [13, 5000]]
-                    },
-                    'promo3': {
-                        1: [[1, 4]],
-                        2: [[1, 1], [2, 25]],
-                        3: [[2, 5], [3, 45]],
-                        4: [[2, 20], [3, 50], [4, 110]],
-                        5: [[2, 1], [3, 3], [4, 15], [5, 900]],
-                        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-                        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-                        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    },
-                    'promo4': {
-                        1: [[1, 4]],
-                        2: [[1, 1], [2, 25]],
-                        3: [[2, 5], [3, 50]],
-                        4: [[3, 20], [4, 110]],
-                        5: [[4, 15], [5, 900]],
-                        6: [[4, 1], [5, 10], [6, 70], [7, 1800]],
-                        7: [[4, 0], [5, 2], [6, 12], [7, 120], [8, 2150]],
-                        8: [[5, 0], [6, 4], [7, 40], [8, 600], [9, 3000]],
-                        9: [[6, 0], [7, 3], [8, 18], [9, 120], [10, 4200]],
-                        10: [[7, 0], [8, 2], [9, 12], [10, 40], [11, 400], [12, 2500], [13, 5000]]
-                    },
-                    'promo5': {
-                        1: [[1, 4]],
-                        2: [[1, 1], [2, 25]],
-                        3: [[1, 1], [2, 8], [3, 45]],
-                        4: [[2, 1], [3, 15], [4, 200]],
-                        5: [[2, 1], [3, 3], [4, 15], [5, 500]],
-                        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-                        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-                        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    },
-                    'promo6': {
-                        1: [[1, 4]],
-                        2: [[1, 1], [2, 25]],
-                        3: [[1, 1], [2, 4], [3, 45]],
-                        4: [[2, 15], [3, 20], [4, 300]],
-                        5: [[2, 1], [3, 3], [4, 20], [5, 900]],
-                        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-                        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-                        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-                        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-                        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-                    }
-                },
-
-                totalAmount: 1000.00,
-                demo: true,
-                oddType: 'kiron',
-                betAmount: 5,
-                winAmount: 0,
-                totalTickets: 0,
-                selectedNumbers: [],
-                drawnNumbers: [],
-                hits: 0,
-                gameStarted: false,
-                gameEnded: false,
-                canAnimate: false,
-                timer: '00:00',
-                currentDrawnNumber: null,
-                lastDrawnNumber: null,
-                tickets: [],
-                selectionTimeLeft: 0,
-                drawTimeLeft: 0,
-                showWinnerPopup: false,
-                drawIntervalId: null,
-                hasTickets: false,
-
-                init() {
-                    this.selectionTimeLeft = this.SELECTION_DURATION / 1000;
-                    this.timer = '00:' + this.selectionTimeLeft.toString().padStart(2, '0');
-                    this.updateTimer();
-                    this.timerInterval = setInterval(() => this.updateTimer(), 1000);
-                    this.totalTickets = this.tickets.length;
-                    this.startSelectionPhase();
-
-                    // Add click-outside handler for tooltips
-                    document.addEventListener('click', (e) => {
-                        this.tickets.forEach((ticket, index) => {
-                            if (ticket.showTooltip && !e.target.closest('.multiplier-tooltip') && !e.target.closest('button[aria-label="Show multiplier breakdown"]')) {
-                                ticket.showTooltip = false;
-                            }
-                        });
-                    });
-                },
-
-                updateTimer() {
-                    if (!this.gameStarted && this.selectionTimeLeft > 0) {
-                        this.selectionTimeLeft--;
-                        const seconds = Math.floor(this.selectionTimeLeft % 60);
-                        this.timer = `00:${seconds.toString().padStart(2, '0')}`;
-                    } else if (this.gameStarted && this.drawTimeLeft > 0) {
-                        this.drawTimeLeft--;
-                        const seconds = Math.floor(this.drawTimeLeft % 60);
-                        this.timer = `00:${seconds.toString().padStart(2, '0')}`;
-                    } else {
-                        this.timer = '00:00';
-                    }
-                },
-
-                startSelectionPhase() {
-                    this.selectionTimeLeft = this.SELECTION_DURATION / 1000;
-                    setTimeout(() => {
-                        if (this.tickets.length > 0) {
-                            this.startGame();
-                        } else {
-                            this.resetGame();
-                        }
-                    }, this.SELECTION_DURATION);
-                },
-
-                selectNumber(num) {
-                    if (this.selectedNumbers.includes(num)) {
-                        this.selectedNumbers = this.selectedNumbers.filter(n => n !== num);
-                    } else if (this.selectedNumbers.length < 10) {
-                        this.selectedNumbers.push(num);
-                        this.selectedNumbers.sort((a, b) => a - b);
-                    }
-                    this.updatePotentialWins();
-                },
-
-                quickPick() {
-                    this.selectedNumbers = [];
-                    while (this.selectedNumbers.length < 10) {
-                        const num = Math.floor(Math.random() * 80) + 1;
-                        if (!this.selectedNumbers.includes(num)) {
-                            this.selectedNumbers.push(num);
-                        }
-                    }
-                    this.selectedNumbers.sort((a, b) => a - b);
-                    this.updatePotentialWins();
-                },
-
-                calculateWin(luckyBalls, totalBalls, stake) {
-                    let odds = 0;
-                    if (this.oddPrice[this.oddType] && this.oddPrice[this.oddType][totalBalls]) {
-                        const valueOfBalls = this.oddPrice[this.oddType][totalBalls];
-                        for (const [hitBalls, oddsValue] of valueOfBalls) {
-                            if (hitBalls === luckyBalls) {
-                                odds = oddsValue;
-                                break;
-                            }
-                        }
-                    }
-                    return odds * stake;
-                },
-
-                calculateOdds(luckyBalls, totalBalls) {
-                    let odds = 0;
-                    if (this.oddPrice[this.oddType] && this.oddPrice[this.oddType][totalBalls]) {
-                        const valueOfBalls = this.oddPrice[this.oddType][totalBalls];
-                        for (const [hitBalls, oddsValue] of valueOfBalls) {
-                            if (hitBalls === luckyBalls) {
-                                odds = oddsValue;
-                                break;
-                            }
-                        }
-                    }
-                    return odds || 1; // Fallback to 1x if no odds are found
-                },
-
-                updatePotentialWins() {
-                    this.tickets.forEach(ticket => {
-                        const totalBalls = ticket.numbers.length;
-                        let maxWin = 0;
-                        let maxOdds = 0;
-                        let oddsBreakdown = [];
-
-                        for (let luckyBalls = 1; luckyBalls <= totalBalls; luckyBalls++) {
-                            const odds = this.calculateOdds(luckyBalls, totalBalls);
-                            const potentialWin = odds * ticket.betAmount;
-                            oddsBreakdown.push([luckyBalls, odds]);
-                            if (odds > maxOdds) {
-                                maxOdds = odds;
-                                maxWin = potentialWin;
-                            }
-                        }
-
-                        oddsBreakdown.sort((a, b) => a[0] - b[0]);
-
-                        ticket.potentialWin = maxWin.toFixed(0);
-                        ticket.multiplier = maxOdds.toFixed(1);
-                        ticket.oddsBreakdown = oddsBreakdown;
-                        ticket.updated = true;
-                    });
-
-                    if (this.selectedNumbers.length > 0) {
-                        const totalBalls = this.selectedNumbers.length;
-                        let maxWin = 0;
-                        for (let luckyBalls = 1; luckyBalls <= totalBalls; luckyBalls++) {
-                            const potentialWin = this.calculateWin(luckyBalls, totalBalls, this.betAmount);
-                            if (potentialWin > maxWin) {
-                                maxWin = potentialWin;
-                            }
-                        }
-                        this.tickets.forEach(ticket => {
-                            if (ticket.numbers.length === this.selectedNumbers.length) {
-                                ticket.potentialWin = maxWin.toFixed(0);
-                            }
-                        });
-                    }
-                },
-
-                showTooltip(index) {
-                    this.tickets.forEach((ticket, i) => {
-                        ticket.showTooltip = i === index ? !ticket.showTooltip : false;
-                        if (ticket.showTooltip) {
-                            setTimeout(() => {
-                                ticket.showTooltip = false;
-                            }, 3000);
-                        }
-                    });
-                },
-
-                addTicket() {
-                    if (this.selectedNumbers.length === 0 || this.selectionTimeLeft <= 3) return;
-                    const totalBalls = this.selectedNumbers.length;
-                    let maxWin = 0;
-                    let maxOdds = 0;
-                    let oddsBreakdown = [];
-
-                    for (let luckyBalls = 1; luckyBalls <= totalBalls; luckyBalls++) {
-                        const odds = this.calculateOdds(luckyBalls, totalBalls);
-                        const potentialWin = odds * this.betAmount;
-                        oddsBreakdown.push([luckyBalls, odds]);
-                        if (odds > maxOdds) {
-                            maxOdds = odds;
-                            maxWin = potentialWin;
-                        }
-                    }
-
-                    oddsBreakdown.sort((a, b) => a[0] - b[0]);
-
-                    this.tickets.push({
-                        numbers: [...this.selectedNumbers],
-                        betAmount: this.betAmount,
-                        multiplier: maxOdds.toFixed(1),
-                        potentialWin: maxWin.toFixed(0),
-                        oddsBreakdown: oddsBreakdown,
-                        actualWin: 0,
-                        isWinner: false,
-                        updated: true,
-                        showTooltip: false
-                    });
-                    this.totalTickets = this.tickets.length;
-                    this.selectedNumbers = [];
-                },
-
-                removeTicket(index) {
-                    this.tickets.splice(index, 1);
-                    this.totalTickets = this.tickets.length;
-                    if (this.tickets.length === 0) {
-                        this.hasTickets = false;
-                    }
-                },
-
-                registerTickets() {
-                    if (this.tickets.length === 0 || this.selectionTimeLeft <= 3) return;
-                    this.hasTickets = true;
-                    console.log('Tickets registered:', this.tickets);
-                },
-
-                cancelTickets() {
-                    if (this.hasTickets) {
-                        console.log('Tickets deregistered:', this.tickets);
-                        this.tickets = [];
-                        this.totalTickets = 0;
-                        this.hasTickets = false;
-                        this.selectedNumbers = [];
-                        this.selectionTimeLeft = this.SELECTION_DURATION / 1000;
-                    }
-                },
-
-                startGame() {
-                    this.gameStarted = true;
-                    this.gameEnded = false;
-                    this.canAnimate = true;
-                    this.drawnNumbers = [];
-                    this.hits = 0;
-                    this.winAmount = 0;
-                    this.drawTimeLeft = this.DRAW_DURATION / 1000;
-
-                    if (!this.demo && this.hasTickets) {
-                        this.tickets.forEach(ticket => {
-                            this.totalAmount -= ticket.betAmount;
-                        });
-                    }
-
-                    const drawInterval = this.DRAW_DURATION / this.TOTAL_DRAW_NUMBERS;
-                    let i = 0;
-
-                    this.drawIntervalId = setInterval(() => {
-                        if (!this.gameStarted || i >= this.TOTAL_DRAW_NUMBERS) {
-                            clearInterval(this.drawIntervalId);
-                            this.gameEnded = true;
-                            this.canAnimate = false;
-
-                            console.log('Game ended. Win Amount:', this.winAmount, 'Game Ended:', this.gameEnded);
-
-                            setTimeout(() => {
-                                if (this.winAmount > 0 && !this.demo) {
-                                    this.totalAmount += this.winAmount;
-                                }
-                                this.resetGame();
-                            }, this.END_GAME_DELAY);
-                            return;
-                        }
-
-                        let nextNum;
-                        do {
-                            nextNum = Math.floor(Math.random() * 80) + 1;
-                        } while (this.drawnNumbers.includes(nextNum));
-
-                        this.currentDrawnNumber = nextNum;
-                        setTimeout(() => {
-                            this.currentDrawnNumber = null;
-                            this.lastDrawnNumber = nextNum;
-                            this.drawnNumbers.push(nextNum);
-                            if (this.hasTickets) {
-                                this.tickets.forEach(ticket => {
-                                    let ticketHits = 0;
-                                    ticket.numbers.forEach(num => {
-                                        if (this.drawnNumbers.includes(num)) {
-                                            ticketHits++;
-                                        }
-                                    });
-                                    const totalBalls = ticket.numbers.length;
-                                    let win = 0;
-                                    if (this.oddPrice[this.oddType][totalBalls]) {
-                                        const rules = this.oddPrice[this.oddType][totalBalls];
-                                        if (rules.some(([hitBalls]) => hitBalls === ticketHits)) {
-                                            win = this.calculateWin(ticketHits, totalBalls, ticket.betAmount);
-                                            ticket.isWinner = true;
-                                            console.log(`Ticket ${ticket.numbers} has ${ticketHits} hits, wins ${win} birr`);
-                                        }
-                                    }
-                                    ticket.actualWin = win.toFixed(0);
-                                    this.winAmount += parseFloat(win);
-                                });
-                            }
-                            i++;
-                        }, drawInterval / 2);
-                    }, drawInterval);
-                },
-
-                handleWin() {
-                    if (this.winAmount > 0) {
-                        this.showWinnerPopup = true;
-                        if (!this.demo) {
-                            this.totalAmount += this.winAmount;
-                        }
-                        setTimeout(() => {
-                            this.resetGame();
-                        }, this.POPUP_DURATION);
-                    } else {
-                        this.resetGame();
-                    }
-                },
-
-                resetGame() {
-                    this.gameStarted = false;
-                    this.gameEnded = false;
-                    this.canAnimate = false;
-                    this.drawnNumbers = [];
-                    this.selectedNumbers = [];
-                    this.hits = 0;
-                    this.winAmount = 0;
-                    this.betAmount = this.MIN_BET_AMOUNT;
-                    this.currentDrawnNumber = null;
-                    this.lastDrawnNumber = null;
-                    this.tickets = [];
-                    this.totalTickets = 0;
-                    this.drawTimeLeft = 0;
-                    this.selectionTimeLeft = this.SELECTION_DURATION / 1000;
-                    this.showWinnerPopup = false;
-                    this.drawIntervalId = null;
-                    this.hasTickets = false;
-                    clearInterval(this.timerInterval);
-                    this.init();
-                }
-            };
-        }
-    </script>
+    <script src="/static/keno.js"></script>
 </body>
 </html>
