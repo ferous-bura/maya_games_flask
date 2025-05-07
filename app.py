@@ -7,7 +7,7 @@ import time
 from flask import Flask, request, jsonify, render_template
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
-from src.keno import keno_blueprint
+# from src.keno import keno_blueprint
 from src.bingo import bingo_blueprint
 from src.play_game import play_blueprint
 from src.payment import payment_blueprint
