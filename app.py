@@ -22,7 +22,7 @@ app.secret_key = secrets.token_hex(16)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Telegram bot token
-TELEGRAM_BOT_TOKEN = '7637824158:AAGFSKHcHn2jxCoBlQ7sUulR8caeQYIUEtQ'
+TELEGRAM_BOT_TOKEN = '7944291761:AAFcIvISjxPr6NWJAT45POeS_uXkWLYLJso'
 
 # Receipt Project API settings
 RECEIPT_API_URL = "http://127.0.0.1:8000"
