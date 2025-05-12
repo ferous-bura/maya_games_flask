@@ -8,7 +8,7 @@ from flask import Blueprint, Flask, render_template, request, jsonify
 from flask_login import LoginManager
 from datetime import datetime, timezone
 
-from utils import BaseUrl
+from constant import RECEIPT_API_KEY, RECEIPT_API_URL, send_telegram_notification
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -16,12 +16,6 @@ app.secret_key = secrets.token_hex(16)
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Telegram bot token
-TELEGRAM_BOT_TOKEN = '7637824158:AAGFSKHcHn2jxCoBlQ7sUulR8caeQYIUEtQ'
-
-# Receipt Project API settings
-RECEIPT_API_URL = "http://127.0.0.1:8000"
-RECEIPT_API_KEY = "251f0f6ad923f82749b30a2ee1f378d1"
 
 payment_blueprint = Blueprint('payment', __name__)
 
@@ -51,21 +45,40 @@ def verify_receipt(source, receipt_id):
         return None
 
 def save_to_receipt_db(data):
-    headers = {"X-API-Key": RECEIPT_API_KEY, "Content-Type": "application/json"}
-    if data.get("source") == "manual":
-        url = f"{RECEIPT_API_URL}/manual/flag"
-        payload = {
-            "receipt_id": data["receipt_id"],
-            "amount": f"{data['amount']} Birr",
-            "payer_name": data["payer_name"],
-            "payer_phone_last4": data.get("payer_phone_last4", "1234"),
-            "game_user_id": data.get("game_user_id")
-        }
+    if not data or "receipt_id" not in data or not data["receipt_id"]:
+        logging.error("Missing or invalid receipt_id in data. Skipping save to Receipt Project DB.")
+        return False
+
+    headers = {"X-API-Key": RECEIPT_API_KEY}
+    if data.get("source") == "telebirr":
+        url = f"{RECEIPT_API_URL}/extract/telebirr?receipt_id={data['receipt_id']}"
+    elif data.get("source") == "boa":
+        url = f"{RECEIPT_API_URL}/extract/boa?trx={data['receipt_id']}"
+    elif data.get("source") == "cbe":
+        url = f"{RECEIPT_API_URL}/extract/cbe?id={data['receipt_id']}"
     else:
-        url = f"{RECEIPT_API_URL}/extract/{data['source']}"
-        payload = data
+        logging.error(f"Unknown source: {data.get('source')}")
+        return False
+
+    # headers = {"X-API-Key": RECEIPT_API_KEY, "Content-Type": "application/json"}
+
+    # if data.get("source") == "manual":
+    #     url = f"{RECEIPT_API_URL}/manual/flag"
+    #     print(f"Saving to Receipt Project DB: {data}")
+    #     payload = {
+    #         "receipt_id": data.get("receipt_id") or data.get("transaction_number"),
+    #         # "receipt_id": data["receipt_id"],
+    #         "amount": f"{data['amount']} Birr",
+    #         "payer_name": data["payer_name"],
+    #         "payer_phone_last4": data.get("payer_phone_last4", "1234"),
+
+    #         "game_user_id": data.get("game_user_id")
+    #     }
+
+    print(f"extracting to Receipt Project DB")
     try:
-        response = requests.get(url, headers=headers, json=payload, timeout=5)
+        response = requests.get(url, headers=headers, timeout=5)
+        print(f"Response from Receipt Project DB: {response.json()}")
         if response.status_code == 200:
             logging.info(f"Saved to Receipt Project DB: {data['receipt_id']}")
             return True
@@ -187,6 +200,7 @@ def parse_transfer_sms(raw_message):
 def payment():
     data = request.get_json()
     raw_message = data.get('raw_message')
+    print(f"Raw message: {raw_message}")
     telegram_id = data.get('telegram_id')
     if not raw_message or not telegram_id:
         logging.error("Missing raw_message or telegram_id in payment request")
@@ -252,23 +266,15 @@ def payment():
 
             # Save to Receipt Project if verified
             if verified:
-                save_to_receipt_db(receipt_data)
+                if not save_to_receipt_db(receipt_data):
+                    return jsonify({"status": "error", "message": "Failed to save to Receipt Project DB."}), 500
                 # Update user deposit
                 c.execute("UPDATE users SET deposit = deposit + ? WHERE id = ?", (amount, user_id))
                 conn.commit()
                 # Notify user
-                notify_response = requests.post(
-                    f"{BaseUrl}/notify",
-                    json={
-                        "telegram_id": telegram_id,
-                        "message": f"Your deposit of {amount} ETB via {method} has been verified! 🎉"
-                    },
-                    timeout=5
-                )
-                if notify_response.status_code != 200:
-                    logging.error(f"Failed to notify user {telegram_id}: {notify_response.json()}")
+                logging.info(f"User deposit updated: {telegram_id}, new deposit={amount}")
+                return send_telegram_notification(telegram_id, f"Your deposit of {amount} ETB via {method} has been verified! 🎉", f"Transaction {status}.")
 
-        return jsonify({"status": "success", "message": f"Transaction {status}."}), 200
     except sqlite3.Error as e:
         logging.error(f"Database error in payment: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -345,7 +351,7 @@ def transactions():
                     "timestamp": t[6]
                 }
                 for t in cursor.fetchall()
-            ]
+            ]   
         return jsonify({"status": "success", "transactions": transactions}), 200
     except sqlite3.Error as e:
         logging.error(f"Database error in transactions: {e}")
@@ -354,3 +360,52 @@ def transactions():
 @payment_blueprint.route('/transactions', methods=['GET'])
 def trx():
     return render_template('transactions.html', transactions=transactions)
+
+@payment_blueprint.route('/withdraw', methods=['POST'])
+def withdraw():
+    """Handle withdrawal requests."""
+    data = request.get_json()
+    telegram_id = data.get('telegram_id')
+    amount = data.get('amount')
+    payment_method = data.get('payment_method')
+    preferred_number = data.get('preferred_number')
+
+    if not all([telegram_id, amount, payment_method, preferred_number]):
+        return jsonify({"status": "error", "message": "All fields are required."}), 400
+
+    try:
+        with sqlite3.connect('transactions.db') as conn:
+            cursor = conn.cursor()
+            # Check if the user exists
+            cursor.execute("SELECT id, deposit FROM users WHERE telegram_id = ?", (telegram_id,))
+            user = cursor.fetchone()
+            if not user:
+                return jsonify({"status": "error", "message": "User not found."}), 404
+
+            user_id, current_deposit = user
+
+            # Check if the user has enough balance
+            if current_deposit < amount:
+                return jsonify({"status": "error", "message": "Insufficient balance."}), 403
+
+            # Deduct the amount from the user's deposit
+            new_deposit = current_deposit - amount
+            cursor.execute("UPDATE users SET deposit = ? WHERE id = ?", (new_deposit, user_id))
+
+            # Log the withdrawal in the transactions table
+            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute(
+                """
+                INSERT INTO transactions (user_id, telegram_id, transaction_number, amount, method, source, payer_name, payment_date, timestamp, verified, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (user_id, telegram_id, secrets.token_hex(8), -amount, payment_method, 'withdrawal', None, None, timestamp, True, 'completed')
+            )
+
+            conn.commit()
+
+        return jsonify({"status": "success", "message": f"Withdrawal of {amount} ETB successful. New balance: {new_deposit} ETB."}), 200
+
+    except sqlite3.Error as e:
+        logging.error(f"Database error during withdrawal: {e}")
+        return jsonify({"status": "error", "message": "An error occurred during the withdrawal process."}), 500

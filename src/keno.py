@@ -8,9 +8,34 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
-from utils import ODD_PRICE, BaseUrl
+from colorlog import ColoredFormatter
+from constant import ODD_PRICE, BaseUrl
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging with colors
+formatter = ColoredFormatter(
+    "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",
+    datefmt='%Y-%m-%d %H:%M:%S',
+    log_colors={
+        'DEBUG': 'white',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'bold_red',
+    },
+    secondary_log_colors={
+        'message': {
+            'scheduler': 'cyan',
+            'round': 'blue',
+            'generate numbers': 'magenta',
+        }
+    }
+)
+
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+logging.getLogger().handlers = [handler]
+logging.getLogger().setLevel(logging.INFO)
+
 keno_blueprint = Blueprint('keno', __name__)
 
 scheduler = BackgroundScheduler()
@@ -48,10 +73,9 @@ class KenoGame:
                 VALUES (?, ?, '[]', 0.0, 0.0)
             """, (round_id, now))
             conn.commit()
-        logging.info(f"Created new round: {round_id}")
+        logging.info(f"Created new round: {round_id}", extra={'secondary_log_color': 'round'})
         return new_round
 
-    # In keno.py, replace the generate_numbers method with this:
     def generate_numbers(self, round_id):
         """Generate numbers for a round, controlling RTP."""
         try:
@@ -69,7 +93,7 @@ class KenoGame:
                 target_payout = total_bets * KENO_RTP
 
                 if not bets or total_bets == 0:
-                    logging.info(f"No bets for round {round_id}. Using random numbers.")
+                    logging.info(f"No bets for round {round_id}. Using random numbers.", extra={'secondary_log_color': 'generate numbers'})
                     return self._random_numbers()
 
                 best_draw = None
@@ -83,7 +107,7 @@ class KenoGame:
                     for bet in bets:
                         bet_numbers = eval(bet['numbers']) if bet['numbers'] else []
                         hits = len(set(bet_numbers) & set(candidate))
-                        odds = self.calculate_odds(hits, len(bet_numbers), bet['odd_type'] or 'kiron')  # Changed bet.get to bet['odd_type'] or
+                        odds = self.calculate_odds(hits, len(bet_numbers), bet['odd_type'] or 'kiron')
                         total_payout += odds * bet['amount_lost'] * KENO_RTP
 
                     payout_diff = abs(total_payout - target_payout)
@@ -95,13 +119,13 @@ class KenoGame:
                         break
 
                 if best_draw:
-                    logging.info(f"Round {round_id}: Selected draw {best_draw}")
+                    logging.info(f"Round {round_id}: Selected draw {best_draw}", extra={'secondary_log_color': 'generate numbers'})
                     return best_draw
-                logging.warning(f"Round {round_id}: No optimal draw found. Using random numbers.")
+                logging.warning(f"Round {round_id}: No optimal draw found. Using random numbers.", extra={'secondary_log_color': 'generate numbers'})
                 return self._random_numbers()
 
         except sqlite3.Error as e:
-            logging.error(f"Database error in generate_numbers: {e}")
+            logging.error(f"Database error in generate_numbers: {e}", extra={'secondary_log_color': 'generate numbers'})
             return self._random_numbers()
 
     def _random_numbers(self):
@@ -193,6 +217,7 @@ class KenoGame:
             next_run_time=datetime.now(timezone.utc),
             replace_existing=True
         )
+        logging.info("Scheduler initialized for Keno rounds.", extra={'secondary_log_color': 'scheduler'})
 
 # Initialize game
 keno_game = KenoGame()

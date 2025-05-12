@@ -1,266 +1,1119 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bingo</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <link rel="stylesheet" href="/static/bingo.css">
+    <title>Maya</title>
+    <style>
+        body {
+            background: #1a2a2a;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .header {
+            background: #1a2a2a;
+            padding: 0.5rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hamburger {
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .menu {
+            display: none;
+            position: absolute;
+            top: 2.5rem;
+            left: 0.5rem;
+            background: #2a3a3a;
+            border: 1px solid #00cc00;
+            border-radius: 0.25rem;
+            padding: 0.5rem;
+            z-index: 10;
+        }
+
+        .menu-item {
+            padding: 0.25rem;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background: #00cc00;
+        }
+
+        .info-box {
+            flex: 1;
+            padding: 0.25rem;
+            text-align: center;
+            font-size: 0.7rem;
+            background: #2a3a3a;
+            border: 1px solid #00cc00;
+            border-radius: 0.25rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .number-circle {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid #00cc00;
+            background: #2a3a3a;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .small-number-circle {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            /* Circular shape for active numbers */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            transition: all 0.1s;
+            background: #2a3a3a;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+        }
+
+        #number-board .small-number-circle {
+            border: none;
+            /* Remove border for inactive */
+            background: transparent;
+            /* Remove background for inactive */
+        }
+
+        #number-board .small-number-circle.number-circle-drawn {
+            border: 2px solid #00cc00;
+            /* Circular border for active */
+            background: #00cc00;
+            /* Fill for active */
+            border-radius: 50%;
+        }
+
+        .small-number-circle.shake {
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            50% {
+                transform: translateX(5px);
+            }
+
+            75% {
+                transform: translateX(-5px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .number-circle-drawn {
+            background: white !important;
+            color: black !important;
+        }
+
+        .number-circle-selected {
+            background: #00cc00 !important;
+            border-color: #00ff00;
+        }
+
+        .number-circle-unavailable {
+            background: #4b5563 !important;
+            cursor: not-allowed;
+        }
+
+        .number-circle-marked {
+            background: #00cc00 !important;
+            border-color: #00ff00;
+        }
+
+        .animated-number {
+            width: 9rem;
+            height: 12rem;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 6rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            background: #00cc00;
+            border: 2px solid #00ff00;
+            position: relative;
+            overflow: hidden;
+            animation: bounce-in 0.5s ease-in-out;
+        }
+
+        @keyframes bounce-in {
+            0% {
+                transform: scale(0.5) translateY(-50%);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.2) translateY(0);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .animated-number-moving {
+            animation: move-to-position 0.5s ease-in-out forwards;
+        }
+
+        @keyframes move-to-position {
+            0% {
+                transform: translateY(0);
+            }
+
+            100% {
+                transform: translateY(2rem) scale(0.5);
+                opacity: 0.8;
+            }
+        }
+
+        .animated-number-placeholder {
+            width: 9rem;
+            height: 12rem;
+            border-radius: 0.5rem;
+            background: #2a3a3a;
+            border: 2px solid #00cc00;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .cartella {
+            background: #2a3a3a;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            flex: 1;
+            min-width: 0;
+            min-height: 200px;
+            /* Increased height for vertical space */
+        }
+
+        .cartella-taken {
+            background: #4b5563 !important;
+            color: #4b5563 !important;
+            cursor: not-allowed;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: #ff4444;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            z-index: 10;
+            display: none;
+        }
+
+        .prev-drawn {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            background: #00cc00;
+            border: 1px solid #00ff00;
+            margin: 0.1rem;
+        }
+
+        .button {
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            border: none;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .button-green {
+            background: #00cc00;
+        }
+
+        .button-green:hover {
+            background: #00ff00;
+        }
+
+        .button-start {
+            background: #00cc00;
+            font-size: 1.2rem;
+            padding: 0.75rem;
+        }
+
+        .button-start:hover {
+            background: #00ff00;
+        }
+
+        .button-bingo {
+            background: #ff4444;
+            font-size: 1.2rem;
+            padding: 1rem;
+            width: 100%;
+        }
+
+        .button-bingo:hover {
+            background: #ff6666;
+        }
+
+        .button-disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
+
+        .pinned-footer {
+            padding: 0.5rem;
+            background: #1a2a2a;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .number-board-labels {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 0.1rem;
+        }
+
+        .game-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 0.25rem;
+            background: #2a3a3a;
+            border: 1px solid #00cc00;
+            border-radius: 0.25rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .top-section {
+            display: flex;
+            flex: 1;
+            padding: 0.5rem;
+            gap: 0.25rem;
+            max-height: 50%;
+        }
+
+        #number-board {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.05rem;
+        }
+
+        #cartellas {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        /* Modify cartella numbers */
+        #cartellas .small-number-circle {
+            border-radius: 0.25rem;
+            /* Rounded corners instead of circular */
+        }
+
+        /* Increase cartella height */
+        .cartella {
+            min-height: 220px;
+            /* Slightly bigger height */
+        }
+
+        /* Adjust the balls */
+        .small-number-circle {
+            width: 2rem;
+            /* Slightly larger width */
+            height: 2rem;
+            /* Slightly larger height */
+            font-size: 0.8rem;
+            /* Adjust font size for better readability */
+        }
+
+        .game-info-item {
+            font-size: 1.5rem;
+            /* Increase font size */
+            font-weight: bold;
+            /* Make text bold */
+            color: #00ff00;
+            /* Bright green color */
+            margin-bottom: 0.5rem;
+            /* Add spacing between items */
+            text-align: center;
+            /* Center align text */
+        }
+
+        .game-info-label {
+            font-size: 1.2rem;
+            /* Slightly smaller for labels */
+            color: #ffffff;
+            /* White color for labels */
+            margin-right: 0.25rem;
+            /* Add spacing between label and value */
+        }
+
+        .game-info-value {
+            font-size: 1.8rem;
+            /* Larger font size for values */
+            color: #00ff00;
+            /* Bright green color for values */
+        }
+    </style>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
-<body class="body" :class="{'body-game-started': gameStarted}" x-data="bingoGame()">
-    <header class="header">
-        <div class="flex items-center space-x-1">
-            <a href="/?token={{ request.args.get('token') }}" class="button button-green text-sm flex items-center space-x-1" x-show="!(gameStarted ?? false)" aria-label="Go back to home">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-                <span>Back</span>
-            </a>
+
+<body>
+    <!-- Stake Selection Screen -->
+    <div id="stake-selection" class="flex flex-col items-center justify-center text-center p-4" style="flex-grow: 1;">
+        <h1 style="font-size: 1.5rem; font-weight: bold; color: #00ff00;">Maya</h1>
+        <h2 style="font-size: 1.2rem; margin: 1rem 0;">Choose Stake & Play!</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; max-width: 300px; width: 100%;">
+            <button class="button button-green" style="padding: 0.75rem;" data-stake="10">10 ETB</button>
+            <button class="button button-green" style="padding: 0.75rem;" data-stake="20">20 ETB</button>
+            <button class="button button-green" style="padding: 0.75rem;" data-stake="50">50 ETB</button>
+            <button class="button button-green" style="padding: 0.75rem;" data-stake="100">100 ETB</button>
         </div>
-        <div class="text-center">
-            <h1 class="text-lg font-bold text-teal-400">Bingo</h1>
-        </div>
-        <div class="text-xs flex flex-col items-end">
-            <span aria-label="Total cartellas">Cartellas: <span x-text="totalCartellas"></span>/100</span>
-            <span aria-label="Total prize">Prize: <span x-text="totalPrize.toFixed(2)"></span> birr</span>
-        </div>
-    </header>
-
-    <main class="flex-grow p-2" aria-label="Bingo game main content">
-        <div class="max-w-sm mx-auto">
-            <!-- Cartella Selection with Pattern Switch -->
-            <div x-show="!gameStarted && !gameStarting && totalCartellas < 100">
-                <div class="mb-4">
-                    <h2 class="text-base font-bold mb-2 text-center">Pattern Type</h2>
-                    <div class="flex justify-center items-center space-x-2">
-                        <span class="text-sm">Single</span>
-                        <label class="switch">
-                            <input type="checkbox" @change="selectPattern($event.target.checked ? 'double' : 'single')" :checked="patternType === 'double'">
-                            <span class="slider"></span>
-                        </label>
-                        <span class="text-sm">Double</span>
-                    </div>
-                    <p class="text-center text-xs text-gray-400 mt-2">
-                        <span x-show="patternType === 'single'">Win with 1 pattern (easier)</span>
-                        <span x-show="patternType === 'double'">Win with 2 patterns (harder, higher reward)</span>
-                    </p>
-                </div>
-
-                <h2 class="text-base font-bold mb-2 text-center">Select Cartella Number (Up to 2)</h2>
-                <p class="text-center text-xs text-gray-400 mb-2">Click a number to preview its cartella. Select up to 2 cartellas.</p>
-                <div class="grid grid-cols-10 gap-1 mb-2" role="grid" aria-label="Cartella number selection grid">
-                    <template x-for="num in 100" :key="num">
-                        <div 
-                            class="number-circle"
-                            :class="{
-                                'hover:bg-blue-600': !selectedCartellaNumbers.includes(num) && !takenCartellas.includes(num),
-                                'number-circle-selected': selectedCartellaNumbers.includes(num),
-                                'number-circle-unavailable': takenCartellas.includes(num) && !selectedCartellaNumbers.includes(num),
-                                'button-disabled': (cartellas.length >= 2 && !selectedCartellaNumbers.includes(num)) || (takenCartellas.includes(num) && !selectedCartellaNumbers.includes(num))
-                            }"
-                            @click="cartellas.length < 2 && !takenCartellas.includes(num) && toggleCartellaNumber(num)"
-                            :aria-label="'Cartella ' + num + (selectedCartellaNumbers.includes(num) ? ' (selected)' : takenCartellas.includes(num) ? ' (unavailable)' : '')"
-                            role="button"
-                        >
-                            <span x-text="num"></span>
-                        </div>
-                    </template>
-                </div>
-
-                <p class="text-center text-yellow-400 text-xs mb-2" x-show="cartellas.length >= 2">Can't add more cartellas. You already have 2!</p>
-
-                <div class="cartella mb-2" x-show="selectedCartellaNumbers.length > 0">
-                    <h3 class="text-center font-bold text-sm mb-1">Cartella Preview</h3>
-                    <div class="grid grid-cols-5 gap-1">
-                        <div class="text-center font-bold text-yellow-400 text-xs">B</div>
-                        <div class="text-center font-bold text-yellow-400 text-xs">I</div>
-                        <div class="text-center font-bold text-yellow-400 text-xs">N</div>
-                        <div class="text-center font-bold text-yellow-400 text-xs">G</div>
-                        <div class="text-center font-bold text-yellow-400 text-xs">O</div>
-
-                        <template x-for="row in 5" :key="row">
-                            <template x-for="col in 5" :key="col">
-                                <div 
-                                    class="number-circle"
-                                    :class="{'bg-yellow-600': currentCartella[row-1][col-1] === '*'}"
-                                >
-                                    <span x-text="currentCartella[row-1][col-1]"></span>
-                                </div>
-                            </template>
-                        </template>
-                    </div>
-                </div>
-
-                <div class="flex justify-center space-x-2 mb-2">
-                    <button 
-                        class="button button-green px-3 py-1 text-sm flex items-center space-x-1"
-                        @click="confirmCartellas()"
-                        :disabled="selectedCartellaNumbers.length === 0"
-                        x-show="cartellas.length === 0"
-                        aria-label="Confirm selected cartellas"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span>Check</span>
-                    </button>
-                    <button 
-                        class="button button-red px-3 py-1 text-sm flex items-center space-x-1"
-                        @click="cancelCartellas()"
-                        x-show="cartellas.length > 0"
-                        aria-label="Cancel selected cartellas"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        <span>Cancel</span>
-                    </button>
-                </div>
-
-                <p class="text-center text-xs text-gray-400" x-show="cartellas.length > 0 && !gameStarted && !gameStarting">
-                    Waiting for at least 5 cartellas to start the game... (<span x-text="cartellas.length"></span>/2 selected)
-                </p>
-            </div>
-
-            <!-- Countdown Before Game Start -->
-            <div x-show="gameStarting && !gameStarted" class="text-center mb-2">
-                <h2 class="text-base font-bold mb-1">Game Starting...</h2>
-                <div class="countdown" x-text="countdown + 's'"></div>
-            </div>
-
-            <!-- Game Play -->
-            <div x-show="gameStarted">
-                <div class="flex flex-col sm:flex-row gap-2 mb-2">
-                    <!-- Numbers Board (5x15) -->
-                    <div class="flex-1">
-                        <div class="grid grid-cols-5 gap-1">
-                            <div class="text-center font-bold text-yellow-400 text-xs">B</div>
-                            <div class="text-center font-bold text-yellow-400 text-xs">I</div>
-                            <div class="text-center font-bold text-yellow-400 text-xs">N</div>
-                            <div class="text-center font-bold text-yellow-400 text-xs">G</div>
-                            <div class="text-center font-bold text-yellow-400 text-xs">O</div>
-
-                            <template x-for="row in 15" :key="row">
-                                <template x-for="col in 5" :key="col">
-                                    <div class="flex flex-col items-center">
-                                        <div 
-                                            class="small-number-circle"
-                                            :class="{'small-number-circle-drawn': calledNumbers.includes(getNumber(col, row))}"
-                                        >
-                                            <span x-text="getNumber(col, row)"></span>
-                                        </div>
-                                    </div>
-                                </template>
-                            </template>
-                        </div>
-                    </div>
-
-                    <!-- Drawn Numbers Info -->
-                    <div class="flex flex-col items-center gap-2">
-                        <p class="text-sm">Total Drawn: <span x-text="calledNumbers.length"></span></p>
-                        <div x-show="currentCalledNumber !== null" class="animated-number">
-                            <span x-text="currentCalledNumberLetter"></span>
-                            <span x-text="currentCalledNumber"></span>
-                        </div>
-                        <div x-show="currentCalledNumber === null" class="animated-number-placeholder"></div>
-                        <div class="history-container">
-                            <div class="flex justify-center gap-1 mb-1">
-                                <template x-for="call in lastFiveCalls" :key="call.number">
-                                    <div 
-                                        class="roll-number"
-                                        :class="{
-                                            'roll-number-b': call.letter === 'B',
-                                            'roll-number-i': call.letter === 'I',
-                                            'roll-number-n': call.letter === 'N',
-                                            'roll-number-g': call.letter === 'G',
-                                            'roll-number-o': call.letter === 'O'
-                                        }"
-                                    >
-                                        <span x-text="call.letter"></span>
-                                        <span x-text="call.number"></span>
-                                    </div>
-                                </template>
-                            </div>
-                            <p class="text-xs text-gray-400 text-center">Last 5 Calls</p>
-                            <div class="history-divider"></div>
-                            <div class="previous-number">
-                                <span x-text="previousNumberLetter || '0'"></span>
-                                <span x-text="previousNumber || '0'"></span>
-                            </div>
-                            <p class="text-xs text-gray-400 text-center">Previous Number</p>
-                        </div>
-                        <div class="call-history">
-                            <span x-text="calledNumbers.length"></span>
-                            <span x-text="lastFiveCalls.length > 0 ? lastFiveCalls[0].letter + '-' + lastFiveCalls[0].number : 'N/A'"></span>
-                        </div>
-                        <p class="text-xs text-gray-400 text-center">Call History</p>
-                    </div>
-                </div>
-
-                <!-- User's Cartellas -->
-                <div class="space-y-2 mb-2">
-                    <template x-for="(cartella, index) in cartellas" :key="index">
-                        <div class="cartella" :class="{'cartella-winner': cartella.isWinner}">
-                            <h3 class="text-center font-bold text-sm mb-1" x-text="'Cartella ' + cartella.id"></h3>
-                            <div class="grid grid-cols-5 gap-1">
-                                <div class="text-center font-bold text-yellow-400 text-xs">B</div>
-                                <div class="text-center font-bold text-yellow-400 text-xs">I</div>
-                                <div class="text-center font-bold text-yellow-400 text-xs">N</div>
-                                <div class="text-center font-bold text-yellow-400 text-xs">G</div>
-                                <div class="text-center font-bold text-yellow-400 text-xs">O</div>
-
-                                <template x-for="row in 5" :key="row">
-                                    <template x-for="col in 5" :key="col">
-                                        <div 
-                                            class="number-circle"
-                                            :class="{
-                                                'number-circle-marked': cartella.markedNumbers.includes(cartella.grid[row-1][col-1]),
-                                                'bg-yellow-600': cartella.grid[row-1][col-1] === '*',
-                                                'winning-number': cartella.isWinner && isWinningNumber(cartella, row-1, col-1),
-                                                'non-winning-number': cartella.isWinner && !isWinningNumber(cartella, row-1, col-1)
-                                            }"
-                                            @click="cartella.grid[row-1][col-1] !== '*' && toggleMark(cartella, cartella.grid[row-1][col-1])"
-                                            :aria-label="'Number ' + cartella.grid[row-1][col-1] + (cartella.markedNumbers.includes(cartella.grid[row-1][col-1]) ? ' (marked)' : '')"
-                                            role="button"
-                                        >
-                                            <span x-text="cartella.grid[row-1][col-1]"></span>
-                                        </div>
-                                    </template>
-                                </template>
-                            </div>
-                            <p class="text-green-400 mt-1 text-center text-xs" x-show="cartella.isWinner" x-text="'Winner! Patterns: ' + cartella.patterns.join(', ')"></p>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-            <!-- Winner Popup -->
-            <div 
-                x-show="showWinnerPopup"
-                class="winner-popup"
-                role="alert"
-                aria-label="Game over notification"
-            >
-                <p class="text-base font-bold">Game Over!</p>
-                <p class="text-xs" x-text="'Cartella ' + winningCartella + ' won the game.'"></p>
-            </div>
-        </div>
-    </main>
-
-    <!-- Pinned Bingo Button -->
-    <div class="pinned-footer" x-show="gameStarted">
-        <button 
-            class="button button-green w-full py-2 text-base flex justify-between items-center px-3"
-            @click="claimWin()"
-            :disabled="!hasWinner || calledNumbers.length < 4"
-            :class="{'button-disabled': !hasWinner || calledNumbers.length < 4}"
-            aria-label="Claim Bingo Win"
-        >
-            <span>BINGO</span>
-            <span x-show="hasWinner && calledNumbers.length >= 4" x-text="winAmount + ' birr'"></span>
-        </button>
+        <button class="button button-green" style="padding: 0.75rem; margin-top: 1rem; width: 100%; max-width: 300px;"
+            data-stake="practice">Practice Mode</button>
     </div>
-    <script src="/static/bingo.js"></script>
+
+    <!-- Cartella Selection Screen -->
+    <div id="cartella-selection" class="flex flex-col h-screen hidden">
+        <div class="header">
+            <div class="hamburger">☰</div>
+            <div class="menu">
+                <div class="menu-item" data-toggle="sound">Toggle Sound (Off)</div>
+                <div class="menu-item" data-toggle="auto-select">Toggle Auto-Select (Off)</div>
+            </div>
+            <!-- <div class="info-box"><strong>Maya</strong></div> -->
+            <div class="info-box"><strong>Balance:</strong> <span id="remaining-balance">0</span> ETB</div>
+            <div class="info-box"><strong>Stake:</strong> <span id="current-stake"></span> ETB</div>
+            <div class="info-box"><strong>Players:</strong> <span id="total-players">0</span></div>
+            <div class="info-box"><strong>Win:</strong> <span id="total-win">0</span> ETB</div>
+        </div>
+        <div class="flex-grow p-2 w-full max-w-sm mx-auto">
+            <h2 style="font-size: 1rem; font-weight: bold; text-align: center; margin-bottom: 0.5rem;">Select Cartella
+                (Up to 2)</h2>
+            <div id="cartella-grid"
+                style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 0.25rem; margin-bottom: 0.5rem;">
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <div id="cartella-preview-1" class="cartella hidden" style="flex: 1;">
+                    <h3 style="text-align: center; font-weight: bold; font-size: 0.9rem; margin-bottom: 0.5rem;">
+                        Cartella Preview #1</h3>
+                    <div class="number-board-labels">
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">B</div>
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">I</div>
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">N</div>
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">G</div>
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">O</div>
+                    </div>
+                    <div id="preview-grid-1"
+                        style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.25rem;"></div>
+                </div>
+                <div id="cartella-preview-2" class="cartella hidden" style="flex: 1;">
+                    <h3 style="text-align: center; font-weight: bold; font-size: 0.9rem; margin-bottom: 0.5rem;">
+                        Cartella Preview #2</h3>
+                    <div class="number-board-labels">
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">B</div>
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">I</div>
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">N</div>
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">G</div>
+                        <div style="font-weight: bold; font-size: 0.7rem; color: #00ff00;">O</div>
+                    </div>
+                    <div id="preview-grid-2"
+                        style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.25rem;"></div>
+                </div>
+            </div>
+            <button id="start-button" class="button button-start w-full hidden">Start</button>
+            <p id="selection-message" style="text-align: center; font-size: 0.8rem; color: #a0a0a0;"></p>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="flex flex-col h-screen">
+        <div class="header">
+            <div class="hamburger">☰</div>
+            <div class="menu">
+                <div class="menu-item" data-toggle="sound">Toggle Sound (Off)</div>
+                <div class="menu-item" data-toggle="gender">Select Gender (Random)</div>
+                <div class="menu-item" data-toggle="auto-select">Toggle Auto-Select (Off)</div>
+            </div>
+            <div class="info-box"><strong>Maya</strong></div>
+            <div class="info-box"><strong>Stake:</strong> <span id="current-stake"></span> ETB</div>
+            <div class="info-box"><strong>Players:</strong> <span id="total-players">0</span></div>
+            <div class="info-box"><strong>Win:</strong> <span id="total-win">0</span> ETB</div>
+        </div>
+        <main class="flex flex-col h-full">
+            <div class="top-section">
+                <div style="flex: 1;">
+                    <div class="number-board-labels" style="justify-content: space-around;">
+                        <div style="font-weight: bold; font-size: 0.5rem; color: #00ff00;">B</div>
+                        <div style="font-weight: bold; font-size: 0.5rem; color: #00ff00;">I</div>
+                        <div style="font-weight: bold; font-size: 0.5rem; color: #00ff00;">N</div>
+                        <div style="font-weight: bold; font-size: 0.5rem; color: #00ff00;">G</div>
+                        <div style="font-weight: bold; font-size: 0.5rem; color: #00ff00;">O</div>
+                    </div>
+                    <div id="number-board"
+                        style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.05rem;"></div>
+                </div>
+                <div class="game-info"
+                    style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <div class="game-info-item">
+                        <span class="game-info-label">Countdown:</span>
+                        <span id="countdown-timer" class="game-info-value">60</span>s
+                    </div>
+                    <div class="game-info-item">
+                        <span class="game-info-label">Call:</span>
+                        <span id="draw-count" class="game-info-value">0</span>
+                    </div>
+                    <div class="game-info-item">
+                        <span class="game-info-label">Draw:</span>
+                        <span id="drawn-number" class="game-info-value">-</span>
+                    </div>
+                    <div id="animated-number" class="animated-number-placeholder"></div>
+                    <div id="prev-drawn-numbers"
+                        style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 0.25rem;"></div>
+                </div>
+            </div>
+            <div id="cartellas"></div>
+        </main>
+        <div class="pinned-footer">
+            <button id="bingo-button" class="button button-bingo">BINGO!</button>
+        </div>
+    </div>
+
+    <div data-deposit-balance="{{ deposit_balance }}" style="display: none;"></div>
+    <div id="sound-toggle" data-sound-enabled="false" style="display: none;"></div>
+
+    <script>
+        let balance = parseFloat(document.querySelector('[data-deposit-balance]').getAttribute('data-deposit-balance'));
+
+        // Function to update the balance
+        function updateBalance(newBalance) {
+            balance = newBalance;
+            $('#remaining-balance').text(balance);
+        }
+
+        // Example: Deduct stake from balance when a stake is selected
+        $('#stake-selection button').on('click', function () {
+            const selectedStake = parseInt($(this).data('stake')) || 0;
+            if (balance >= selectedStake) {
+                updateBalance(balance - selectedStake);
+            } else {
+                alert('Insufficient balance!');
+            }
+        });
+
+        // Initialize the balance display
+        updateBalance(balance);
+
+        $(document).ready(function () {
+            let stake = null;
+            let userId = null;
+            let telegramId = null;
+            let selectedCartellas = [];
+            let predefinedCartellas = [];
+            let cartellas = [];
+            let gameStarted = false;
+            let gameId = null;
+            let token = new URLSearchParams(window.location.search).get('token');
+            let soundEnabled = false;
+            let autoSelectEnabled = false;
+            let audioFiles = {};
+            let selectedGender = "f";
+            let drawnNumbers = []; // Declare drawnNumbers as an empty array
+
+            // Hide the menu navigation by default
+            $('#game-screen').hide();
+
+            if (!token) {
+                alert('Token required. Please log in.');
+                window.location.href = '/';
+                return;
+            }
+            // Load audio files on sound toggle
+            function loadAudioFiles(gender) {
+                const columns = {
+                    'B': [1, 15],
+                    'I': [16, 30],
+                    'N': [31, 45],
+                    'G': [46, 60],
+                    'O': [61, 75]
+                };
+                audioFiles = {};
+                for (let col in columns) {
+                    const [start, end] = columns[col];
+                    for (let num = start; num <= end; num++) {
+                        const fileName = `${col}_${num}.mp3`;
+                        const url = `/static/audio/amharic/${gender}/${fileName}`;
+                        audioFiles[`${col}_${num}`] = new Audio(url);
+                        console.log(`Loaded audio: ${url}`);
+                    }
+                }
+            }
+
+            // Generate predefined cartellas
+            function generatePredefinedCartellas() {
+                const ranges = [
+                    [1, 15],   // B
+                    [16, 30],  // I
+                    [31, 45],  // N
+                    [46, 60],  // G
+                    [61, 75]   // O
+                ];
+                predefinedCartellas = [];
+                for (let i = 0; i < 100; i++) {
+                    let cartella = [];
+                    for (let col = 0; col < 5; col++) {
+                        let colNumbers = [];
+                        for (let row = 0; row < 5; row++) {
+                            if (col === 2 && row === 2) {
+                                colNumbers.push('*');
+                            } else {
+                                let num;
+                                do {
+                                    num = Math.floor(Math.random() * (ranges[col][1] - ranges[col][0] + 1)) + ranges[col][0];
+                                } while (colNumbers.includes(num));
+                                colNumbers.push(num);
+                            }
+                        }
+                        cartella.push(colNumbers);
+                    }
+                    cartella = cartella[0].map((_, i) => cartella.map(col => col[i]));
+                    predefinedCartellas.push(cartella);
+                }
+            }
+
+            // Stake Selection
+            $('#stake-selection button').on('click', function () {
+                $('#game-screen').hide(); // Hide the menu navigation
+                stake = $(this).data('stake');
+                $('#stake-selection').addClass('hidden');
+                $('#cartella-selection').removeClass('hidden');
+                $('.header').addClass('hidden'); // Hide header during selection
+
+                $.ajax({
+                    url: '/bingo/join_stake',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ stake: stake, token: token }),
+                    success: function (response) {
+                        userId = response.user_id;
+                        telegramId = response.telegram_id;
+                        gameId = response.round_id;
+                        setupCartellaSelection(response.available_cartellas, response.selected_cartellas);
+                    },
+                    error: function (xhr) {
+                        $('#selection-message').text('Error connecting to server: ' + xhr.responseJSON.message);
+                    }
+                });
+            });
+
+            $('#start-button').on('click', function () {
+                $('#game-screen').hide(); // Hide the menu navigation
+            });
+
+            // Cartella Selection
+            function setupCartellaSelection(availableCartellas, selectedCartellasServer) {
+                for (let num = 1; num <= 100; num++) {
+                    const isAvailable = availableCartellas.includes(num);
+                    const isSelectedByOthers = selectedCartellasServer.includes(num);
+                    $('#cartella-grid').append(
+                        `<div class="number-circle ${!isAvailable || isSelectedByOthers ? 'number-circle-unavailable' : ''}" data-num="${num}">
+                        <span>${num}</span>
+                    </div>`
+                    );
+                }
+
+                const cartellaPoll = setInterval(() => {
+                    $.ajax({
+                        url: '/bingo/select_cartellas',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ stake: stake, user_id: userId, cartellas: [], token: token }),
+                        success: function (response) {
+                            const serverSelected = response.selected_cartellas;
+                            $('#cartella-grid .number-circle').each(function () {
+                                const num = parseInt($(this).data('num'));
+                                if (serverSelected.includes(num) && !selectedCartellas.includes(num)) {
+                                    $(this).addClass('cartella-taken');
+                                }
+                            });
+                        }
+                    });
+                }, 1000);
+
+                $('#cartella-grid .number-circle').on('click', function () {
+                    const $this = $(this);
+                    const num = parseInt($this.data('num'));
+                    if ($this.hasClass('cartella-taken')) {
+                        const $tooltip = $('<div class="tooltip">This cartella is taken!</div>');
+                        $this.append($tooltip);
+                        $tooltip.fadeIn(200).delay(1000).fadeOut(200, function () {
+                            $(this).remove();
+                        });
+                        return;
+                    }
+                    if (selectedCartellas.includes(num)) {
+                        selectedCartellas = selectedCartellas.filter(n => n !== num);
+                        $this.removeClass('number-circle-selected');
+                    } else if (selectedCartellas.length < 2) {
+                        selectedCartellas.push(num);
+                        $this.addClass('number-circle-selected');
+                    } else {
+                        const firstCartella = selectedCartellas.shift();
+                        $(`#cartella-grid [data-num="${firstCartella}"]`).removeClass('number-circle-selected');
+                        selectedCartellas.push(num);
+                        $this.addClass('number-circle-selected');
+                    }
+
+                    $('#cartella-preview-1, #cartella-preview-2').addClass('hidden');
+                    $('#preview-grid-1, #preview-grid-2').empty();
+                    selectedCartellas.forEach((cartellaNum, index) => {
+                        $(`#cartella-preview-${index + 1}`).removeClass('hidden');
+                        const currentCartella = predefinedCartellas[cartellaNum - 1] || [];
+                        $(`#preview-grid-${index + 1}`).empty();
+                        for (let row = 0; row < 5; row++) {
+                            for (let col = 0; col < 5; col++) {
+                                const val = currentCartella[row] ? currentCartella[row][col] : '-';
+                                $(`#preview-grid-${index + 1}`).append(
+                                    `<div class="small-number-circle ${val === '*' ? 'bg-green-600' : ''}" data-number="${val}" data-row="${row}" data-col="${col}">
+                                    <span>${val}</span>
+                                </div>`
+                                );
+                            }
+                        }
+                    });
+
+                    if (selectedCartellas.length > 0) {
+                        $('#start-button').removeClass('hidden');
+                    } else {
+                        $('#start-button').addClass('hidden');
+                    }
+                });
+
+                $('#start-button').on('click', function () {
+                    clearInterval(cartellaPoll);
+                    $.ajax({
+                        url: '/bingo/select_cartellas',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ stake: stake, user_id: userId, cartellas: selectedCartellas, token: token }),
+                        success: function (response) {
+                            $('#selection-message').text(`Selected ${response.selected_cartellas.length} cartella(s). Starting game...`);
+                            $('#cartella-selection').addClass('hidden');
+                            $('#game-screen').removeClass('hidden');
+                            $('.header').removeClass('hidden'); // Show header when game starts
+                            setupGame();
+                        },
+                        error: function (xhr) {
+                            $('#selection-message').text('Error starting game: ' + xhr.responseJSON.message);
+                        }
+                    });
+                });
+            }
+
+            // Game Screen Setup
+            function setupGame() {
+                $('#game-screen').show(); // Show the menu navigation
+                $.ajax({
+                    url: '/bingo/start',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ stake: stake, token: token, cartella_ids: selectedCartellas }),
+                    success: function (response) {
+                        gameId = response.game_id;
+                        $('#current-stake').text(stake === 'practice' ? 'Practice' : stake);
+                        generateNumberBoard();
+
+                        $.ajax({
+                            url: '/bingo/select_cartellas',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ stake: stake, user_id: userId, cartellas: [], token: token }),
+                            success: function (response) {
+                                const totalCartellas = response.total_cartellas;
+                                const baseWin = stake === 'practice' ? 0 : (parseInt(stake) * totalCartellas);
+                                const winAfterCut = stake === 'practice' ? 'Practice' : (baseWin * 0.95).toFixed(2);
+                                $('#total-players').text(totalCartellas);
+                                $('#total-win').text(winAfterCut);
+
+                                $('#cartellas').empty();
+                                selectedCartellas.forEach((num, index) => {
+                                    const cartella = {
+                                        id: num,
+                                        grid: predefinedCartellas[num - 1],
+                                        numbers: predefinedCartellas[num - 1].flat().filter(n => n !== '*'),
+                                        markedNumbers: [],
+                                        patterns: [],
+                                        isWinner: false
+                                    };
+                                    cartellas.push(cartella);
+                                    $('#cartellas').append(
+                                        `<div class="cartella" style="flex: 1; min-width: 0;">
+                                        <div class="number-board-labels" style="justify-content: space-around;">
+                                            <div style="font-weight: bold; font-size: 0.6rem; color: #00ff00;">B</div>
+                                            <div style="font-weight: bold; font-size: 0.6rem; color: #00ff00;">I</div>
+                                            <div style="font-weight: bold; font-size: 0.6rem; color: #00ff00;">N</div>
+                                            <div style="font-weight: bold; font-size: 0.6rem; color: #00ff00;">G</div>
+                                            <div style="font-weight: bold; font-size: 0.6rem; color: #00ff00;">O</div>
+                                        </div>
+                                        <div id="cartella-${index + 1}-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.1rem;"></div>
+                                        <div style="text-align: center; font-size: 0.7rem; margin-top: 0.25rem;">Card #${num}</div>
+                                    </div>`
+                                    );
+                                    for (let row = 0; row < 5; row++) {
+                                        for (let col = 0; col < 5; col++) {
+                                            const val = cartella.grid[row][col];
+                                            $(`#cartella-${index + 1}-grid`).append(
+                                                `<div class="small-number-circle ${val === '*' ? 'bg-green-600' : ''}" data-number="${val}" data-row="${row}" data-col="${col}">
+                                                <span>${val}</span>
+                                            </div>`
+                                            );
+                                        }
+                                    }
+                                });
+
+                                startCountdown();
+                            }
+                        });
+                    },
+                    error: function (xhr) {
+                        alert('Error starting game: ' + xhr.responseJSON.message);
+                        window.location.reload();
+                    }
+                });
+            }
+
+            // Countdown and game start
+            function startCountdown() {
+                $.ajax({
+                    url: `/bingo/${gameId}`,
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    success: function (response) {
+                        const startTime = new Date(response.start_time).getTime();
+                        const countdownInterval = setInterval(() => {
+                            const timeLeft = Math.max(0, Math.floor((startTime + 60000 - Date.now()) / 1000));
+                            $('#countdown-timer').text(timeLeft);
+                            if (timeLeft <= 0) {
+                                clearInterval(countdownInterval);
+                                startGame();
+                            }
+                        }, 1000);
+                    }
+                });
+            }
+
+            // Start the game
+            function startGame() {
+                gameStarted = true;
+                $('#countdown-timer').parent().find('div:contains("Countdown")').hide();
+                drawNumbers();
+            }
+
+            function drawNumbers() {
+                const drawInterval = setInterval(() => {
+                    $.ajax({
+                        url: `/bingo/${gameId}`,
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        success: function (response) {
+                            drawnNumbers = response.drawn_numbers || [];
+                            if (drawnNumbers.length >= 75 || response.game_status === 'completed' || cartellas.some(c => c.isWinner)) {
+                                clearInterval(drawInterval);
+                                endGame();
+                                return;
+                            }
+                            const remainingNumbers = Array.from({ length: 75 }, (_, i) => i + 1).filter(n => !drawnNumbers.includes(n));
+                            const drawnNumber = remainingNumbers[Math.floor(Math.random() * remainingNumbers.length)];
+                            $.ajax({
+                                url: `/bingo/${gameId}/draw`,
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${token}` },
+                                contentType: 'application/json',
+                                data: JSON.stringify({ number: drawnNumber }),
+                                success: function (drawResponse) {
+                                    drawnNumbers = drawResponse.drawn_numbers;
+                                    $('#draw-count').text(`${drawResponse.drawn_numbers.length}/75`);
+                                    $('#drawn-number').text(drawnNumber);
+
+                                    const $animated = $(`<div class="animated-number">${drawnNumber}</div>`);
+                                    $('#animated-number').html($animated);
+
+                                    // Play sound if enabled
+                                    if (soundEnabled && selectedGender) {
+                                        const columnIndex = Math.floor((drawnNumber - 1) / 15);
+                                        const column = ['B', 'I', 'N', 'G', 'O'][columnIndex];
+                                        const audio = audioFiles[`${column}_${drawnNumber}`];
+                                        if (audio) {
+                                            audio.play().catch(e => console.error('Audio play error:', e));
+                                        }
+                                    }
+
+                                    // Delay before animating the number to the previous numbers list
+                                    setTimeout(() => {
+                                        const $prevDrawn = $(`<div class="prev-drawn">${drawnNumber}</div>`);
+                                        $('#prev-drawn-numbers').prepend($prevDrawn);
+
+                                        // Add the moving animation class
+                                        $animated.addClass('animated-number-moving');
+
+                                        // Remove the animated number after it moves
+                                        setTimeout(() => {
+                                            $animated.remove();
+                                        }, 500);
+
+                                        // Keep only the last 5 numbers in the previous numbers list
+                                        if ($('#prev-drawn-numbers .prev-drawn').length > 5) {
+                                            $('#prev-drawn-numbers .prev-drawn:last-child').remove();
+                                        }
+                                    }, 4000); // Delay of 4 seconds before moving the number
+                                }
+                            });
+                        }
+                    });
+                }, 5000); // Draw a new number every 5 seconds
+            }
+
+            // Cartella number selection
+            $(document).on('click', '.small-number-circle', function () {
+                const $this = $(this);
+                const number = parseInt($this.data('number'));
+                const drawnNumber = parseInt($('#drawn-number').text()) || 0;
+                // if (number !== '*' && number === drawnNumber) {
+                if (drawnNumbers.includes(number)) {
+                    $this.toggleClass('number-circle-marked');
+                    cartellas.forEach((cartella, index) => {
+                        if (cartella.numbers.includes(number)) {
+                            if ($this.hasClass('number-circle-marked')) {
+                                if (!cartella.markedNumbers.includes(number)) cartella.markedNumbers.push(number);
+                            } else {
+                                cartella.markedNumbers = cartella.markedNumbers.filter(n => n !== number);
+                            }
+                        }
+                    });
+                    if (autoSelectEnabled && cartellas.length > 1) {
+                        cartellas.forEach((cartella, idx) => {
+                            const $otherGrid = $(`#cartella-${idx + 1}-grid`);
+                            const $otherNumber = $otherGrid.find(`[data-number="${number}"]`);
+                            if (!$otherNumber.hasClass('number-circle-marked') && $this.hasClass('number-circle-marked')) {
+                                $otherNumber.addClass('number-circle-marked');
+                                if (!cartella.markedNumbers.includes(number)) cartella.markedNumbers.push(number);
+                            } else if ($otherNumber.hasClass('number-circle-marked') && !$this.hasClass('number-circle-marked')) {
+                                $otherNumber.removeClass('number-circle-marked');
+                                cartella.markedNumbers = cartella.markedNumbers.filter(n => n !== number);
+                            }
+                        });
+                    }
+                    // } else if (number !== '*' && number !== drawnNumber) {
+                } else {
+                    $this.addClass('shake');
+                    setTimeout(() => $this.removeClass('shake'), 300);
+                }
+            });
+
+            // Win detection
+            function checkWin() {
+                cartellas.forEach(cartella => {
+                    const grid = cartella.grid;
+                    const marked = cartella.markedNumbers;
+
+                    // Check rows
+                    for (let row = 0; row < 5; row++) {
+                        if (grid[row].every(num => num === '*' || marked.includes(num))) {
+                            cartella.isWinner = true;
+                        }
+                    }
+
+                    // Check columns
+                    for (let col = 0; col < 5; col++) {
+                        if ([0, 1, 2, 3, 4].every(row => grid[row][col] === '*' || marked.includes(grid[row][col]))) {
+                            cartella.isWinner = true;
+                        }
+                    }
+
+                    // Check diagonals
+                    if ([grid[0][0], grid[1][1], grid[2][2], grid[3][3], grid[4][4]].every(num => num === '*' || marked.includes(num))) {
+                        cartella.isWinner = true;
+                    }
+                    if ([grid[0][4], grid[1][3], grid[2][2], grid[3][1], grid[4][0]].every(num => num === '*' || marked.includes(num))) {
+                        cartella.isWinner = true;
+                    }
+                });
+            }
+
+            // Show win/lose popup or end game
+            function showResult() {
+                const win = cartellas.some(c => c.isWinner);
+                const winAmount = win ? $('#total-win').text() : 0;
+                if (win) {
+                    const message = `Congratulations! You won ${winAmount} ETB!`;
+                    const $popup = $(`
+                    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 20;">
+                        <div style="background: #2a3a3a; padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                            <h2 style="font-size: 1.2rem; margin-bottom: 1rem;">${message}</h2>
+                            <button class="button button-green" style="padding: 0.5rem 1rem;">Try Again</button>
+                        </div>
+                    </div>
+                `);
+                    $('body').append($popup);
+                    $popup.find('button').on('click', function () {
+                        $popup.remove();
+                        location.reload();
+                    });
+
+                    $.ajax({
+                        url: '/bingo/place_bet',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            token: token,
+                            cartella_ids: selectedCartellas,
+                            bet_amount: parseInt(stake) || 0,
+                            pattern_type: 'single',
+                            round_id: gameId
+                        }),
+                        success: function (response) {
+                            const newWinAmount = response.winnings;
+                            $popup.find('h2').text(`Congratulations! You won ${newWinAmount} ETB!`);
+                        },
+                        error: function (xhr) {
+                            alert('Error claiming Bingo: ' + xhr.responseJSON.message);
+                        }
+                    });
+                } else {
+                    const $tooltip = $('<div class="tooltip">Not won, continue</div>');
+                    $('#bingo-button').append($tooltip);
+                    $tooltip.fadeIn(200).delay(1000).fadeOut(200, function () {
+                        $(this).remove();
+                    });
+                }
+            }
+
+            // End game and redirect
+            function endGame() {
+                const message = 'Game Over! Returning to stake selection...';
+                const $popup = $(`
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 20;">
+                    <div style="background: #2a3a3a; padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                        <h2 style="font-size: 1.2rem; margin-bottom: 1rem;">${message}</h2>
+                        <button class="button button-green" style="padding: 0.5rem 1rem;">OK</button>
+                    </div>
+                </div>
+            `);
+                $('body').append($popup);
+                $popup.find('button').on('click', function () {
+                    $popup.remove();
+                    localStorage.setItem('token', token);
+                    location.href = `/play/bingo?token=${token}`;
+                });
+            }
+
+            // Bingo button click
+            $('#bingo-button').on('click', function () {
+                checkWin();
+                showResult();
+            });
+
+            // Generate Number Board
+            function generateNumberBoard() {
+                const baseNumbers = [
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+                    [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+                    [31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+                    [46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60],
+                    [61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75]
+                ];
+
+                for (let row = 0; row < 15; row++) {
+                    for (let col = 0; col < 5; col++) {
+                        const num = baseNumbers[col][row];
+                        $('#number-board').append(
+                            `<div style="display: flex; flex-direction: column; align-items: center;">
+                            <div class="small-number-circle" data-number="${num}">
+                                <span>${num}</span>
+                            </div>
+                        </div>`
+                        );
+                    }
+                }
+            }
+
+            // Hamburger menu toggle
+            $('.hamburger').on('click', function () {
+                $('.menu').toggle();
+            });
+
+            // Menu item toggles
+            $('.menu-item').on('click', function () {
+                const toggle = $(this).data('toggle');
+                if (toggle === 'sound') {
+                    soundEnabled = !soundEnabled;
+                    if (soundEnabled && !selectedGender) {
+                        selectedGender = 'f'; // Default to female if not set
+                        loadAudioFiles(selectedGender);
+                    } else if (soundEnabled && selectedGender) {
+                        loadAudioFiles(selectedGender);
+                    }
+                    $(this).text(`Toggle Sound (${soundEnabled ? 'On' : 'Off'})`);
+                } else if (toggle === 'gender') {
+                    selectedGender = selectedGender === 'f' ? 'm' : 'f';
+                    if (soundEnabled) loadAudioFiles(selectedGender);
+                    $(this).text(`Select Gender (${selectedGender === 'f' ? 'Female' : 'Male'})`);
+                } else if (toggle === 'auto-select') {
+                    autoSelectEnabled = !autoSelectEnabled;
+                    $(this).text(`Toggle Auto-Select (${autoSelectEnabled ? 'On' : 'Off'})`);
+                }
+                $('.menu').hide();
+            });
+
+            // Initialize
+            generatePredefinedCartellas();
+        });
+    </script>
 </body>
+
 </html>

@@ -1,84 +1,17 @@
 import random
 import sqlite3
-import requests
 import logging
-import secrets
 import time
-from flask import Flask, request, jsonify, render_template
-from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask import request, jsonify, render_template
+from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash
-# from src.keno import keno_blueprint
-from src.bingo import bingo_blueprint
-from src.play_game import play_blueprint
-from src.payment import payment_blueprint
 
 from startapp import call_home
-from utils import User, ensure_db_initialized, generate_user_token
-
-app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)
+from utils import User, ensure_db_initialized, app
+from constant import generate_user_token, send_telegram_notification
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Telegram bot token
-TELEGRAM_BOT_TOKEN = '7944291761:AAFcIvISjxPr6NWJAT45POeS_uXkWLYLJso'
-
-# Receipt Project API settings
-RECEIPT_API_URL = "http://127.0.0.1:8000"
-RECEIPT_API_KEY = "251f0f6ad923f82749b30a2ee1f378d1"
-
-# Flask-Login setup
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
-# Register blueprints
-app.register_blueprint(bingo_blueprint, url_prefix='/bingo')
-# app.register_blueprint(keno_blueprint, url_prefix='/keno')
-app.register_blueprint(play_blueprint, url_prefix='/play')
-app.register_blueprint(payment_blueprint, url_prefix='/payment')
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    with sqlite3.connect("transactions.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, phone, username, password_hash, is_staff FROM users WHERE id = ?", (user_id,))
-        user_data = cursor.fetchone()
-        if user_data:
-            return User(user_data[0], user_data[1], user_data[2], user_data[3], user_data[4])
-        return None
-
-
-def add_round_id_to_game_activities():
-    try:
-        with sqlite3.connect('transactions.db') as conn:
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA table_info(game_activities)")
-            columns = [column[1] for column in cursor.fetchall()]
-            if 'round_id' not in columns:
-                cursor.execute("ALTER TABLE game_activities ADD COLUMN round_id TEXT")
-                conn.commit()
-                print("Added `round_id` column to `game_activities` table.")
-    except sqlite3.Error as e:
-        print(f"Error adding `round_id` column: {e}")
-
-def add_numbers_to_game_activities():
-    try:
-        with sqlite3.connect('transactions.db') as conn:
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA table_info(game_activities)")
-            columns = [column[1] for column in cursor.fetchall()]
-            if 'numbers' not in columns:
-                cursor.execute("ALTER TABLE game_activities ADD COLUMN numbers TEXT")
-                conn.commit()
-                print("Added `numbers` column to `game_activities` table.")
-    except sqlite3.Error as e:
-        print(f"Error adding `numbers` column: {e}")
-
-add_round_id_to_game_activities()
-add_numbers_to_game_activities()
 
 
 @app.route('/bot/full_status', methods=['POST'])
@@ -169,27 +102,13 @@ def notify():
     message = data.get('message')
     if not telegram_id or not message:
         return jsonify({"status": "error", "message": "Telegram ID and message required."}), 400
-    try:
-        response = requests.post(
-            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-            json={"chat_id": telegram_id, "text": message},
-            timeout=5
-        )
-        if response.status_code == 200:
-            logging.info(f"Notification sent to {telegram_id}: {message}")
-            return jsonify({"status": "success", "message": "Notification sent."}), 200
-        else:
-            logging.error(f"Failed to send notification to {telegram_id}: {response.json()}")
-            return jsonify({"status": "error", "message": response.json().get('description', 'Failed to send.')}), 500
-    except requests.RequestException as e:
-        logging.error(f"Notification error for {telegram_id}: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
+    return send_telegram_notification(telegram_id, message, "Notification sent.")
 
 @app.route('/bot/generate_token', methods=['POST'])
 def generate_token():
     data = request.get_json()
     telegram_id = data.get('telegram_id')
+    print(f'telegram id {telegram_id}')
     if not telegram_id:
         return jsonify({"status": "error", "message": "Telegram ID required."}), 400
     token = generate_user_token(telegram_id)
@@ -214,12 +133,81 @@ def check_transaction():
             """, (transaction_number, telegram_id))
             transaction = c.fetchone()
             if not transaction:
-                return jsonify({"status": "error", "message": "Transaction not found."}), 404
+                return jsonify({"status": "error", "message": "Transaction not found."}), 200
             amount, method, source, payer_name, payment_date, timestamp, verified, status = transaction
             message = f"{amount} ETB via {method} ({source}) on {payment_date or timestamp} ({status})"
             return jsonify({"status": "success", "message": message}), 200
     except sqlite3.Error as e:
         logging.error(f"Database error in check_transaction: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/bot/check_registration', methods=['POST'])
+def check_registration():
+    data = request.get_json()
+    telegram_id = data.get('telegram_id')
+    if not telegram_id:
+        return jsonify({"status": "error", "message": "Telegram ID required."}), 400
+    try:
+        with sqlite3.connect('transactions.db') as conn:
+            c = conn.cursor()
+            c.execute("SELECT id FROM users WHERE telegram_id = ?", (telegram_id,))
+            if c.fetchone():
+                return jsonify({"status": "registered"}), 200
+            else:
+                return jsonify({"status": "not_registered"}), 200
+    except sqlite3.Error as e:
+        logging.error(f"Database error in check_registration: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        try:
+            with sqlite3.connect('transactions.db') as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, phone, username, password_hash, is_staff FROM users WHERE username = ?", (username,))
+                user_data = cursor.fetchone()
+                if user_data and check_password_hash(user_data[3], password):
+                    user = User(user_data[0], user_data[1], user_data[2], user_data[3], user_data[4])
+                    login_user(user)
+                    logging.info(f"User {username} logged in")
+                    return jsonify({"status": "success", "message": "Logged in successfully."}), 200
+                else:
+                    logging.warning(f"Failed login attempt for {username}")
+                    return jsonify({"status": "error", "message": "Invalid credentials."}), 401
+        except sqlite3.Error as e:
+            logging.error(f"Database error in login: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    username = current_user.username
+    logout_user()
+    logging.info(f"User {username} logged out")
+    return jsonify({"status": "success", "message": "Logged out successfully."}), 200
+
+@app.route('/update_language', methods=['POST'])
+def update_language():
+    data = request.get_json()
+    telegram_id = data.get('telegram_id')
+    language = data.get('language')
+    if not all([telegram_id, language]) or language not in ['en', 'am']:
+        return jsonify({"status": "error", "message": "Invalid telegram_id or language."}), 400
+    try:
+        with sqlite3.connect('transactions.db') as conn:
+            c = conn.cursor()
+            c.execute("UPDATE users SET language = ? WHERE telegram_id = ?", (language, telegram_id))
+            if c.rowcount == 0:
+                return jsonify({"status": "error", "message": "User not found."}), 404
+            conn.commit()
+            logging.info(f"Language updated for telegram_id={telegram_id} to {language}")
+        return jsonify({"status": "success", "message": "Language updated."}), 200
+    except sqlite3.Error as e:
+        logging.error(f"Database error in update_language: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/')
@@ -299,7 +287,7 @@ def home():
             'hom.html',
             user_id=user_id,
             username=display_name,
-            deposit=deposit,
+            deposit_balance=deposit,
             photo_url=photo_url,
             demo_mode=demo_mode,
             recent_games=recent_games,
@@ -316,58 +304,6 @@ def home():
 @app.route('/ping')
 def ping():
     return "Ping successful!"
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        try:
-            with sqlite3.connect('transactions.db') as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT id, phone, username, password_hash, is_staff FROM users WHERE username = ?", (username,))
-                user_data = cursor.fetchone()
-                if user_data and check_password_hash(user_data[3], password):
-                    user = User(user_data[0], user_data[1], user_data[2], user_data[3], user_data[4])
-                    login_user(user)
-                    logging.info(f"User {username} logged in")
-                    return jsonify({"status": "success", "message": "Logged in successfully."}), 200
-                else:
-                    logging.warning(f"Failed login attempt for {username}")
-                    return jsonify({"status": "error", "message": "Invalid credentials."}), 401
-        except sqlite3.Error as e:
-            logging.error(f"Database error in login: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
-    return render_template('login.html')
-
-@app.route('/logout')
-@login_required
-def logout():
-    username = current_user.username
-    logout_user()
-    logging.info(f"User {username} logged out")
-    return jsonify({"status": "success", "message": "Logged out successfully."}), 200
-
-@app.route('/update_language', methods=['POST'])
-def update_language():
-    data = request.get_json()
-    telegram_id = data.get('telegram_id')
-    language = data.get('language')
-    if not all([telegram_id, language]) or language not in ['en', 'am']:
-        return jsonify({"status": "error", "message": "Invalid telegram_id or language."}), 400
-    try:
-        with sqlite3.connect('transactions.db') as conn:
-            c = conn.cursor()
-            c.execute("UPDATE users SET language = ? WHERE telegram_id = ?", (language, telegram_id))
-            if c.rowcount == 0:
-                return jsonify({"status": "error", "message": "User not found."}), 404
-            conn.commit()
-            logging.info(f"Language updated for telegram_id={telegram_id} to {language}")
-        return jsonify({"status": "success", "message": "Language updated."}), 200
-    except sqlite3.Error as e:
-        logging.error(f"Database error in update_language: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
 
 if __name__ == '__main__':
     call_home()

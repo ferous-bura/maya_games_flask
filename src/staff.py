@@ -1,27 +1,18 @@
-import re
 import sqlite3
 import requests
 import logging
 import secrets
 from flask import Flask, request, jsonify
-from flask_login import LoginManager, current_user, login_required
-from datetime import datetime, timezone
+from flask_login import current_user, login_required
 
 from src.payment import save_to_receipt_db, verify_receipt
-from utils import BaseUrl
+from constant import RECEIPT_API_KEY, RECEIPT_API_URL
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Telegram bot token
-TELEGRAM_BOT_TOKEN = '7637824158:AAGFSKHcHn2jxCoBlQ7sUulR8caeQYIUEtQ'
-
-# Receipt Project API settings
-RECEIPT_API_URL = "http://127.0.0.1:8000"
-RECEIPT_API_KEY = "251f0f6ad923f82749b30a2ee1f378d1"
 
 
 @app.route('/staff/verify', methods=['POST'])

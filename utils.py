@@ -3,27 +3,29 @@ import logging
 import secrets
 import time
 from flask import Blueprint, Flask, send_from_directory
-from flask_login import UserMixin
-
-
+from flask_login import LoginManager, UserMixin
+from src.bingo import bingo_blueprint
+from src.play_game import play_blueprint
+from src.payment import payment_blueprint
+from src.keno import keno_blueprint
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
+
+# Register blueprints
+app.register_blueprint(bingo_blueprint, url_prefix='/bingo')
+app.register_blueprint(keno_blueprint, url_prefix='/keno')
+app.register_blueprint(play_blueprint, url_prefix='/play')
+app.register_blueprint(payment_blueprint, url_prefix='/payment')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Telegram bot token
-TELEGRAM_BOT_TOKEN = '7637824158:AAGFSKHcHn2jxCoBlQ7sUulR8caeQYIUEtQ'
-
-# Receipt Project API settings
-RECEIPT_API_URL = "http://127.0.0.1:8000"
-RECEIPT_API_KEY = "251f0f6ad923f82749b30a2ee1f378d1"
-
 payment_blueprint = Blueprint('payment', __name__)
 
-
-BaseUrl = "http://127.0.0.1:5000"
-# BaseUrl = "http://192.168.62.187:5000"
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 class User(UserMixin):
     def __init__(self, id, phone, username, password_hash, is_staff, telegram_id):
@@ -133,169 +135,79 @@ def init_db():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS bingo_rounds (
                 round_id TEXT PRIMARY KEY,
+                stake TEXT,
                 timestamp DATETIME,
                 numbers TEXT,
                 total_bets REAL DEFAULT 0.0,
-                total_payouts REAL DEFAULT 0.0
+                total_payouts REAL DEFAULT 0.0,
+                status TEXT DEFAULT 'pending',  -- pending, active, completed
+                FOREIGN KEY (stake) REFERENCES bingo_stakes(stake)
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bingo_stakes (
+                stake TEXT PRIMARY KEY,
+                description TEXT
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bingo_cartella_selections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                round_id TEXT,
+                user_id INTEGER,
+                cartella_id INTEGER,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (round_id) REFERENCES bingo_rounds(round_id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+        # Insert default stakes
+        stakes = [
+            ('10', '10 ETB Stake'),
+            ('20', '20 ETB Stake'),
+            ('50', '50 ETB Stake'),
+            ('100', '100 ETB Stake'),
+            ('practice', 'Practice Mode')
+        ]
+        cursor.executemany("INSERT OR IGNORE INTO bingo_stakes (stake, description) VALUES (?, ?)", stakes)
         conn.commit()
     logging.info("Database initialized.")
 
-
-def generate_user_token(telegram_id):
-    """Generate a token for a user and store it in the database."""
-    try:
-        with sqlite3.connect('transactions.db') as conn:
-            c = conn.cursor()
-            c.execute("SELECT id FROM users WHERE telegram_id = ?", (telegram_id,))
-            user = c.fetchone()
-            if not user:
-                logging.error(f"User not found for telegram_id: {telegram_id}")
-                return None
-            token = secrets.token_hex(16)
-            expiry = int(time.time()) + 3600 * 24  # Token expires in 24 hours
-            c.execute("UPDATE users SET bot_token = ?, token_expiry = ? WHERE telegram_id = ?", (token, expiry, telegram_id))
-            conn.commit()
-            logging.info(f"Generated token for telegram_id={telegram_id}")
-            return token
-    except sqlite3.Error as e:
-        logging.error(f"Database error in generate_user_token: {e}")
+@login_manager.user_loader
+def load_user(user_id):
+    with sqlite3.connect("transactions.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, phone, username, password_hash, is_staff, telegram_id FROM users WHERE id = ?", (user_id,))
+        user_data = cursor.fetchone()
+        if user_data:
+            return User(user_data[0], user_data[1], user_data[2], user_data[3], user_data[4], user_data[5])
         return None
 
+def add_round_id_to_game_activities():
+    try:
+        with sqlite3.connect('transactions.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(game_activities)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'round_id' not in columns:
+                cursor.execute("ALTER TABLE game_activities ADD COLUMN round_id TEXT")
+                conn.commit()
+                print("Added `round_id` column to `game_activities` table.")
+    except sqlite3.Error as e:
+        print(f"Error adding `round_id` column: {e}")
 
-# Odds table
-ODD_PRICE = {
-    'kiron': {
-        1: [[1, 4]],
-        2: [[2, 15]],
-        3: [[2, 3], [3, 35]],
-        4: [[2, 1], [3, 8], [4, 100]],
-        5: [[2, 1], [3, 3], [4, 15], [5, 100]],
-        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    },
-    'mohio2': {
-        1: [[1, 4]],
-        2: [[2, 15]],
-        3: [[2, 3], [3, 50]],
-        4: [[2, 1], [3, 11], [4, 100]],
-        5: [[2, 1], [3, 4], [4, 20], [5, 300]],
-        6: [[3, 2], [4, 15], [5, 80], [6, 500]],
-        7: [[3, 2], [4, 5], [5, 40], [6, 100], [7, 1000]],
-        8: [[4, 5], [5, 15], [6, 100], [7, 200], [8, 2000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    },
-    'type1': {
-        1: [[1, 4]],
-        2: [[2, 20]],
-        3: [[2, 3], [3, 35]],
-        4: [[2, 1], [3, 8], [4, 100]],
-        5: [[2, 1], [3, 3], [4, 15], [5, 300]],
-        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    },
-    'type2': {
-        1: [[1, 4]],
-        2: [[2, 25]],
-        3: [[2, 5], [3, 45]],
-        4: [[2, 1], [3, 20], [4, 300]],
-        5: [[2, 1], [3, 3], [4, 15], [5, 900]],
-        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    },
-    'mohio': {
-        1: [[1, 4]],
-        2: [[1, 1], [2, 15]],
-        3: [[1, 1], [2, 3], [3, 50]],
-        4: [[2, 1], [3, 11], [4, 100]],
-        5: [[2, 1], [3, 4], [4, 20], [5, 300]],
-        6: [[3, 2], [4, 15], [5, 80], [6, 500]],
-        7: [[3, 2], [4, 5], [5, 40], [6, 100], [7, 1000]],
-        8: [[4, 5], [5, 15], [6, 100], [7, 200], [8, 2000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    },
-    'promo': {
-        1: [[1, 4]],
-        2: [[1, 1], [2, 25]],
-        3: [[1, 1], [2, 8], [3, 50]],
-        4: [[2, 1], [3, 20], [4, 300]],
-        5: [[2, 1], [3, 3], [4, 15], [5, 900]],
-        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    },
-    'promo2': {
-        1: [[1, 4]],
-        2: [[2, 20]],
-        3: [[2, 3], [3, 35]],
-        4: [[3, 8], [4, 100]],
-        5: [[4, 15], [5, 300]],
-        6: [[4, 1], [5, 10], [6, 70], [7, 1800]],
-        7: [[4, 0], [5, 2], [6, 12], [7, 120], [8, 2150]],
-        8: [[5, 0], [6, 4], [7, 40], [8, 600], [9, 3000]],
-        9: [[6, 0], [7, 3], [8, 18], [9, 120], [10, 4200]],
-        10: [[7, 0], [8, 2], [9, 12], [10, 40], [11, 400], [12, 2500], [13, 5000]]
-    },
-    'promo3': {
-        1: [[1, 4]],
-        2: [[1, 1], [2, 25]],
-        3: [[2, 5], [3, 45]],
-        4: [[2, 20], [3, 50], [4, 110]],
-        5: [[2, 1], [3, 3], [4, 15], [5, 900]],
-        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    },
-    'promo4': {
-        1: [[1, 4]],
-        2: [[1, 1], [2, 25]],
-        3: [[2, 5], [3, 50]],
-        4: [[3, 20], [4, 110]],
-        5: [[4, 15], [5, 900]],
-        6: [[4, 1], [5, 10], [6, 70], [7, 1800]],
-        7: [[4, 0], [5, 2], [6, 12], [7, 120], [8, 2150]],
-        8: [[5, 0], [6, 4], [7, 40], [8, 600], [9, 3000]],
-        9: [[6, 0], [7, 3], [8, 18], [9, 120], [10, 4200]],
-        10: [[7, 0], [8, 2], [9, 12], [10, 40], [11, 400], [12, 2500], [13, 5000]]
-    },
-    'promo5': {
-        1: [[1, 4]],
-        2: [[1, 1], [2, 25]],
-        3: [[1, 1], [2, 8], [3, 45]],
-        4: [[2, 1], [3, 15], [4, 200]],
-        5: [[2, 1], [3, 3], [4, 15], [5, 500]],
-        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    },
-    'promo6': {
-        1: [[1, 4]],
-        2: [[1, 1], [2, 25]],
-        3: [[1, 1], [2, 4], [3, 45]],
-        4: [[2, 15], [3, 20], [4, 300]],
-        5: [[2, 1], [3, 3], [4, 20], [5, 900]],
-        6: [[3, 1], [4, 10], [5, 70], [6, 1800]],
-        7: [[3, 1], [4, 6], [5, 12], [6, 120], [7, 2150]],
-        8: [[4, 4], [5, 8], [6, 68], [7, 600], [8, 3000]],
-        9: [[4, 3], [5, 6], [6, 18], [7, 120], [8, 1800], [9, 4200]],
-        10: [[4, 2], [5, 4], [6, 12], [7, 40], [8, 400], [9, 2500], [10, 5000]]
-    }
-}
+def add_numbers_to_game_activities():
+    try:
+        with sqlite3.connect('transactions.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(game_activities)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'numbers' not in columns:
+                cursor.execute("ALTER TABLE game_activities ADD COLUMN numbers TEXT")
+                conn.commit()
+                print("Added `numbers` column to `game_activities` table.")
+    except sqlite3.Error as e:
+        print(f"Error adding `numbers` column: {e}")
+
+add_round_id_to_game_activities()
+add_numbers_to_game_activities()

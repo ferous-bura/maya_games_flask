@@ -5,7 +5,7 @@ import time
 from flask import Blueprint, Flask, redirect, render_template, request, jsonify
 from flask_login import current_user
 
-from utils import BaseUrl, generate_user_token
+from constant import BaseUrl, generate_user_token
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -110,7 +110,7 @@ def play_game(game_type):
                 f'{game_type}.html',
                 game_type=game_type,
                 username=username,
-                deposit=deposit,
+                deposit_balance=deposit,
                 photo_url=photo_url or '/static/default_user.jpg',
                 demo_mode=demo_mode,
                 token=token
@@ -119,3 +119,51 @@ def play_game(game_type):
     except sqlite3.Error as e:
         logging.error(f"Database error in play_game: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/get_settings', methods=['GET'])
+def get_settings():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"status": "error", "message": "User ID required."}), 400
+
+    try:
+        with sqlite3.connect('transactions.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT sound_enabled, auto_select_enabled FROM user_settings WHERE user_id = ?", (user_id,))
+            settings = cursor.fetchone()
+            if settings:
+                return jsonify({"status": "success", "settings": {"sound_enabled": settings[0], "auto_select_enabled": settings[1]}}), 200
+            else:
+                return jsonify({"status": "error", "message": "Settings not found."}), 404
+    except sqlite3.Error as e:
+        logging.error(f"Database error in get_settings: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/update_settings', methods=['POST'])
+def update_settings():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    sound_enabled = data.get('sound_enabled', True)
+    auto_select_enabled = data.get('auto_select_enabled', False)
+
+    if not user_id:
+        return jsonify({"status": "error", "message": "User ID required."}), 400
+
+    try:
+        with sqlite3.connect('transactions.db') as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO user_settings (user_id, sound_enabled, auto_select_enabled)
+                VALUES (?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                sound_enabled = excluded.sound_enabled,
+                auto_select_enabled = excluded.auto_select_enabled
+            """, (user_id, sound_enabled, auto_select_enabled))
+            conn.commit()
+        return jsonify({"status": "success", "message": "Settings updated."}), 200
+    except sqlite3.Error as e:
+        logging.error(f"Database error in update_settings: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+        
